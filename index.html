@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Manager — Agency Clay</title>
+    <style>
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #252525;
+            --bg-hover: #2a2a2a;
+            --text-primary: #e8e8e8;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666;
+            --accent: #fe2c55;
+            --accent-hover: #ff4469;
+            --accent-dim: rgba(254, 44, 85, 0.15);
+            --border: #2a2a2a;
+            --cyan: #25f4ee;
+            --cyan-dim: rgba(37, 244, 238, 0.12);
+            --green: #4ade80;
+            --green-dim: rgba(74, 222, 128, 0.15);
+            --yellow: #facc15;
+            --yellow-dim: rgba(250, 204, 21, 0.15);
+            --orange: #fb923c;
+            --orange-dim: rgba(251, 146, 60, 0.15);
+            --red: #f87171;
+            --red-dim: rgba(248, 113, 113, 0.15);
+            --purple: #c084fc;
+            --purple-dim: rgba(192, 132, 252, 0.15);
+            --blue: #60a5fa;
+            --blue-dim: rgba(96, 165, 250, 0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 12px; }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .logo span { color: var(--accent); }
+        .logo a { color: inherit; text-decoration: none; }
+        .logo a:hover { opacity: 0.8; }
+
+        .header-badge {
+            background: var(--cyan-dim);
+            color: var(--cyan);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .header-right { display: flex; align-items: center; gap: 10px; }
+
+        .back-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 13px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.15s;
+        }
+        .back-link:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn:hover { border-color: var(--text-muted); }
+
+        .btn-accent {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        .btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+        .btn-ghost {
+            background: none;
+            border-color: transparent;
+            color: var(--text-muted);
+        }
+        .btn-ghost:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+
+        /* Layout */
+        .app-body {
+            display: flex;
+            min-height: calc(100vh - 60px);
+        }
+
+        .sidebar {
+            width: 220px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 16px 0;
+            flex-shrink: 0;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            border-left: 2px solid transparent;
+        }
+        .sidebar-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .sidebar-item.active { background: var(--accent-dim); color: var(--accent); border-left-color: var(--accent); }
+
+        .sidebar-item .count {
+            margin-left: auto;
+            background: var(--bg-tertiary);
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .sidebar-item.active .count { background: var(--accent-dim); color: var(--accent); }
+
+        .sidebar-divider { height: 1px; background: var(--border); margin: 12px 20px; }
+
+        .sidebar-label {
+            padding: 8px 20px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+
+        .main { flex: 1; padding: 24px 32px; overflow-x: auto; }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .stat-value { font-size: 24px; font-weight: 700; }
+        .stat-detail { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-search {
+            flex: 1;
+            min-width: 200px;
+            max-width: 350px;
+            padding: 8px 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+        }
+        .toolbar-search::placeholder { color: var(--text-muted); }
+        .toolbar-search:focus { border-color: var(--accent); }
+
+        .toolbar-select {
+            padding: 8px 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .toolbar-right { margin-left: auto; display: flex; gap: 8px; }
+
+        /* Table */
+        .lead-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .lead-table th {
+            background: var(--bg-secondary);
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+        .lead-table th:hover { color: var(--text-secondary); }
+
+        .lead-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .lead-table tr:hover td { background: var(--bg-hover); }
+
+        .lead-table .email-cell { color: var(--cyan); }
+        .lead-table .company-cell { color: var(--text-primary); font-weight: 500; }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-a { background: var(--green-dim); color: var(--green); }
+        .badge-b { background: var(--blue-dim); color: var(--blue); }
+        .badge-c { background: var(--yellow-dim); color: var(--yellow); }
+        .badge-d { background: var(--orange-dim); color: var(--orange); }
+        .badge-f { background: var(--red-dim); color: var(--red); }
+
+        .badge-personal { background: var(--green-dim); color: var(--green); }
+        .badge-generic { background: var(--orange-dim); color: var(--orange); }
+
+        .badge-raw { background: var(--bg-tertiary); color: var(--text-muted); }
+        .badge-validated { background: var(--green-dim); color: var(--green); }
+        .badge-enriched { background: var(--cyan-dim); color: var(--cyan); }
+        .badge-dead { background: var(--red-dim); color: var(--red); }
+
+        .badge-outreach { background: var(--accent-dim); color: var(--accent); }
+        .badge-newsletter { background: var(--purple-dim); color: var(--purple); }
+        .badge-enrich { background: var(--yellow-dim); color: var(--yellow); }
+        .badge-archive { background: var(--bg-tertiary); color: var(--text-muted); }
+        .badge-new { background: var(--cyan-dim); color: var(--cyan); }
+
+        /* Checkbox */
+        .lead-table input[type="checkbox"] {
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 32px;
+        }
+
+        .modal h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .modal-close {
+            float: right;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .modal-close:hover { color: var(--text-primary); }
+
+        /* Form */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group.full { grid-column: 1 / -1; }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+        }
+        .form-input:focus { border-color: var(--accent); }
+
+        .form-select {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+        }
+
+        /* Drop Zone */
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 16px;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+        .drop-zone-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+        .drop-zone-sub { font-size: 13px; color: var(--text-muted); }
+
+        /* Import Preview */
+        .import-preview {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .import-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 16px 0;
+        }
+
+        .import-stat {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+        .import-stat-value { font-size: 20px; font-weight: 700; }
+        .import-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+        /* Pipeline View */
+        .pipeline {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .pipeline-col {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            min-height: 200px;
+        }
+
+        .pipeline-col-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .pipeline-col-title { font-size: 13px; font-weight: 600; }
+        .pipeline-col-count {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+        }
+
+        .pipeline-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .pipeline-card:hover { border-color: var(--accent); }
+
+        .pipeline-card-name { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+        .pipeline-card-company { font-size: 12px; color: var(--text-muted); }
+        .pipeline-card-email { font-size: 11px; color: var(--cyan); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        .empty-state-title { font-size: 18px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+        .empty-state-desc { font-size: 14px; margin-bottom: 24px; }
+
+        /* Actions dropdown */
+        .actions-cell { position: relative; }
+        .actions-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .actions-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+
+        /* Responsive */
+        @media (max-width: 1200px) { .stats-row { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .pipeline { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* Tabs */
+        .view-tabs {
+            display: flex;
+            gap: 2px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 3px;
+            margin-bottom: 20px;
+            width: fit-content;
+        }
+        .view-tab {
+            padding: 7px 18px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            border: none;
+            background: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .view-tab:hover { color: var(--text-secondary); }
+        .view-tab.active { background: var(--accent); color: white; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--green);
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-size: 13px;
+            color: var(--green);
+            z-index: 300;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo"><a href="index.html">TikTok<span>Shop</span></a> Lead Manager</div>
+            <span class="header-badge">AGENCY CLAY</span>
+        </div>
+        <div class="header-right">
+            <a href="index.html" class="back-link">Back to Knowledge Base</a>
+        </div>
+    </header>
+
+    <div class="app-body">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-label">Pipeline</div>
+            <div class="sidebar-item active" data-filter="all" onclick="setFilter('all', this)">
+                All Leads <span class="count" id="count-all">0</span>
+            </div>
+            <div class="sidebar-item" data-filter="new" onclick="setFilter('new', this)">
+                New / Unprocessed <span class="count" id="count-new">0</span>
+            </div>
+            <div class="sidebar-item" data-filter="outreach" onclick="setFilter('outreach', this)">
+                Ready for Outreach <span class="count" id="count-outreach">0</span>
+            </div>
+            <div class="sidebar-item" data-filter="newsletter" onclick="setFilter('newsletter', this)">
+                Newsletter Queue <span class="count" id="count-newsletter">0</span>
+            </div>
+            <div class="sidebar-item" data-filter="enrich" onclick="setFilter('enrich', this)">
+                Needs Enrichment <span class="count" id="count-enrich">0</span>
+            </div>
+            <div class="sidebar-item" data-filter="archive" onclick="setFilter('archive', this)">
+                Archived / Dead <span class="count" id="count-archive">0</span>
+            </div>
+
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-label">Tiers</div>
+            <div class="sidebar-item" data-filter="tier-a" onclick="setFilter('tier-a', this)">
+                Tier A — Hot <span class="count" id="count-tier-a">0</span>
+            </div>
+            <div class="sidebar-item" data-filter="tier-b" onclick="setFilter('tier-b', this)">
+                Tier B — Warm <span class="count" id="count-tier-b">0</span>
+            </div>
+            <div class="sidebar-item" data-filter="tier-c" onclick="setFilter('tier-c', this)">
+                Tier C — Nurture <span class="count" id="count-tier-c">0</span>
+            </div>
+            <div class="sidebar-item" data-filter="tier-d" onclick="setFilter('tier-d', this)">
+                Tier D — Enrich <span class="count" id="count-tier-d">0</span>
+            </div>
+            <div class="sidebar-item" data-filter="tier-f" onclick="setFilter('tier-f', this)">
+                Tier F — Dead <span class="count" id="count-tier-f">0</span>
+            </div>
+
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-label">Email Type</div>
+            <div class="sidebar-item" data-filter="personal" onclick="setFilter('personal', this)">
+                Personal Emails <span class="count" id="count-personal">0</span>
+            </div>
+            <div class="sidebar-item" data-filter="generic" onclick="setFilter('generic', this)">
+                Generic Emails <span class="count" id="count-generic">0</span>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main" id="main">
+            <!-- Stats -->
+            <div class="stats-row" id="statsRow"></div>
+
+            <!-- View Tabs -->
+            <div class="view-tabs">
+                <button class="view-tab active" onclick="setView('table', this)">Table</button>
+                <button class="view-tab" onclick="setView('pipeline', this)">Pipeline</button>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="toolbar" id="toolbar">
+                <input type="text" class="toolbar-search" id="searchInput" placeholder="Search leads..." oninput="renderLeads()" />
+                <select class="toolbar-select" id="sortSelect" onchange="renderLeads()">
+                    <option value="score-desc">Score: High to Low</option>
+                    <option value="score-asc">Score: Low to High</option>
+                    <option value="name-asc">Name: A-Z</option>
+                    <option value="name-desc">Name: Z-A</option>
+                    <option value="company-asc">Company: A-Z</option>
+                    <option value="date-desc">Newest First</option>
+                    <option value="date-asc">Oldest First</option>
+                </select>
+                <div class="toolbar-right">
+                    <button class="btn" onclick="openImportModal()">Import CSV</button>
+                    <button class="btn" onclick="openAddModal()">+ Add Lead</button>
+                    <button class="btn" onclick="exportCSV()">Export</button>
+                    <button class="btn btn-accent" onclick="runAutoClean()">Auto-Clean</button>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div id="contentArea"></div>
+        </main>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal-overlay" id="importModal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModal('importModal')">&times;</button>
+            <h2>Import Leads from CSV</h2>
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('csvFile').click()">
+                <div class="drop-zone-title">Drop CSV file here or click to browse</div>
+                <div class="drop-zone-sub">Supports .csv files with headers. We'll auto-map common column names.</div>
+            </div>
+            <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="handleCSVFile(this.files[0])" />
+            <div id="importPreview"></div>
+            <div id="importActions" style="display:none; margin-top: 16px; text-align: right;">
+                <button class="btn" onclick="closeModal('importModal')" style="margin-right: 8px;">Cancel</button>
+                <button class="btn btn-accent" onclick="confirmImport()">Import Leads</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Lead Modal -->
+    <div class="modal-overlay" id="leadModal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModal('leadModal')">&times;</button>
+            <h2 id="leadModalTitle">Add Lead</h2>
+            <input type="hidden" id="editLeadId" />
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">First Name</label>
+                    <input type="text" class="form-input" id="leadFirst" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Last Name</label>
+                    <input type="text" class="form-input" id="leadLast" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-input" id="leadEmail" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="text" class="form-input" id="leadPhone" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Company</label>
+                    <input type="text" class="form-input" id="leadCompany" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-input" id="leadTitle" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Website</label>
+                    <input type="text" class="form-input" id="leadWebsite" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">LinkedIn URL</label>
+                    <input type="text" class="form-input" id="leadLinkedin" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Industry</label>
+                    <input type="text" class="form-input" id="leadIndustry" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Employee Count</label>
+                    <input type="number" class="form-input" id="leadEmployees" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Pipeline Stage</label>
+                    <select class="form-select" id="leadStage">
+                        <option value="new">New / Unprocessed</option>
+                        <option value="outreach">Ready for Outreach</option>
+                        <option value="newsletter">Newsletter Queue</option>
+                        <option value="enrich">Needs Enrichment</option>
+                        <option value="archive">Archived</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Source</label>
+                    <input type="text" class="form-input" id="leadSource" placeholder="e.g. Apollo, trade show, referral" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notes</label>
+                <input type="text" class="form-input" id="leadNotes" />
+            </div>
+            <div style="text-align: right; margin-top: 16px;">
+                <button class="btn" onclick="closeModal('leadModal')" style="margin-right: 8px;">Cancel</button>
+                <button class="btn btn-accent" onclick="saveLead()">Save Lead</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ========== DATA LAYER ==========
+        const STORAGE_KEY = 'agencyclay_leads';
+        let leads = [];
+        let currentFilter = 'all';
+        let currentView = 'table';
+        let importBuffer = [];
+
+        function loadLeads() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                leads = data ? JSON.parse(data) : [];
+            } catch (e) {
+                leads = [];
+            }
+        }
+
+        function saveLeads() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        }
+
+        // ========== GENERIC EMAIL DETECTION ==========
+        const GENERIC_PREFIXES = [
+            'support', 'info', 'hello', 'admin', 'contact', 'sales', 'help',
+            'team', 'office', 'general', 'enquiries', 'mail', 'noreply',
+            'no-reply', 'billing', 'accounts', 'service', 'customerservice',
+            'hr', 'marketing', 'press', 'media', 'webmaster', 'postmaster',
+            'feedback', 'careers', 'jobs', 'legal', 'compliance', 'privacy',
+            'abuse', 'security', 'operations', 'ops', 'orders', 'returns',
+            'shipping', 'warehouse', 'reception', 'frontdesk', 'studio',
+            'bookings', 'reservations', 'events', 'partnerships', 'pr',
+            'communications', 'editorial', 'news', 'subscribe', 'unsubscribe'
+        ];
+
+        function isGenericEmail(email) {
+            if (!email) return true;
+            const prefix = email.toLowerCase().split('@')[0];
+            return GENERIC_PREFIXES.includes(prefix);
+        }
+
+        function getEmailType(email) {
+            if (!email) return 'unknown';
+            return isGenericEmail(email) ? 'generic' : 'personal';
+        }
+
+        // ========== LEAD SCORING ==========
+        const DECISION_MAKER_TITLES = [
+            'ceo', 'coo', 'cmo', 'cto', 'cfo', 'founder', 'co-founder', 'cofounder',
+            'owner', 'president', 'vp', 'vice president', 'director', 'head of',
+            'chief', 'partner', 'principal', 'general manager', 'gm',
+            'ecommerce director', 'ecom director', 'dtc director', 'growth lead'
+        ];
+
+        const INFLUENCER_TITLES = [
+            'manager', 'marketing manager', 'social media manager', 'brand manager',
+            'ecommerce manager', 'ecom manager', 'digital marketing', 'content manager',
+            'growth manager', 'acquisition', 'performance marketing', 'media buyer',
+            'marketing coordinator', 'marketing specialist'
+        ];
+
+        const TARGET_INDUSTRIES = [
+            'ecommerce', 'e-commerce', 'retail', 'consumer goods', 'cpg',
+            'beauty', 'cosmetics', 'wellness', 'health', 'skincare',
+            'fashion', 'apparel', 'clothing', 'dtc', 'direct to consumer',
+            'food', 'beverage', 'supplements', 'fitness', 'lifestyle',
+            'home goods', 'pet', 'baby', 'toys', 'electronics'
+        ];
+
+        function scoreLead(lead) {
+            let score = 0;
+            const title = (lead.title || '').toLowerCase();
+            const industry = (lead.industry || '').toLowerCase();
+            const employees = parseInt(lead.employee_count) || 0;
+
+            // Title scoring
+            if (DECISION_MAKER_TITLES.some(t => title.includes(t))) score += 30;
+            else if (INFLUENCER_TITLES.some(t => title.includes(t))) score += 15;
+
+            // Industry scoring
+            if (TARGET_INDUSTRIES.some(t => industry.includes(t))) score += 20;
+
+            // Company size sweet spot (10-200)
+            if (employees >= 10 && employees <= 200) score += 20;
+            else if (employees > 200 && employees <= 500) score += 10;
+
+            // Email quality
+            if (lead.email && !isGenericEmail(lead.email)) score += 10;
+            else if (isGenericEmail(lead.email)) score -= 20;
+
+            // Has LinkedIn
+            if (lead.linkedin_url) score += 5;
+
+            // Has phone
+            if (lead.phone) score += 5;
+
+            // Has website
+            if (lead.website) score += 5;
+
+            // Freshness (based on date_added)
+            if (lead.date_added) {
+                const age = Date.now() - new Date(lead.date_added).getTime();
+                const months = age / (1000 * 60 * 60 * 24 * 30);
+                if (months <= 3) score += 10;
+                else if (months <= 6) score += 5;
+                else if (months > 12) score -= 10;
+            }
+
+            return Math.max(0, Math.min(100, score));
+        }
+
+        function getTier(score) {
+            if (score >= 70) return 'A';
+            if (score >= 50) return 'B';
+            if (score >= 30) return 'C';
+            if (score >= 10) return 'D';
+            return 'F';
+        }
+
+        function getStageFromTier(tier, emailType) {
+            if (tier === 'F') return 'archive';
+            if (emailType === 'generic') return 'enrich';
+            if (tier === 'A' || tier === 'B') return 'outreach';
+            if (tier === 'C') return 'newsletter';
+            return 'enrich';
+        }
+
+        // ========== AUTO-CLEAN ==========
+        function runAutoClean() {
+            if (leads.length === 0) {
+                showToast('No leads to clean. Import some first!');
+                return;
+            }
+
+            let cleaned = 0;
+            let dupes = 0;
+            let scored = 0;
+            let tiered = 0;
+
+            // Step 1: Detect email types
+            leads.forEach(lead => {
+                const oldType = lead.email_type;
+                lead.email_type = getEmailType(lead.email);
+                if (oldType !== lead.email_type) cleaned++;
+            });
+
+            // Step 2: Deduplicate by email
+            const seen = new Map();
+            const unique = [];
+            for (const lead of leads) {
+                const key = (lead.email || '').toLowerCase().trim();
+                if (!key) { unique.push(lead); continue; }
+                if (seen.has(key)) {
+                    dupes++;
+                    // Keep the newer one
+                    const existing = seen.get(key);
+                    if (new Date(lead.date_added) > new Date(existing.date_added)) {
+                        unique[unique.indexOf(existing)] = lead;
+                        seen.set(key, lead);
+                    }
+                } else {
+                    seen.set(key, lead);
+                    unique.push(lead);
+                }
+            }
+            leads = unique;
+
+            // Step 3: Remove obvious junk
+            const beforeJunk = leads.length;
+            leads = leads.filter(lead => {
+                if (!lead.email && !lead.company_name) return false;
+                const email = (lead.email || '').toLowerCase();
+                if (email === 'test@test.com' || email === 'asdf@asdf.com' || email === 'example@example.com') return false;
+                if (email && !email.includes('@')) return false;
+                return true;
+            });
+            const junkRemoved = beforeJunk - leads.length;
+
+            // Step 4: Score and tier all leads
+            leads.forEach(lead => {
+                lead.score = scoreLead(lead);
+                const oldTier = lead.tier;
+                lead.tier = getTier(lead.score);
+                if (oldTier !== lead.tier) tiered++;
+                scored++;
+
+                // Auto-assign stage if still "new" or "raw"
+                if (!lead.stage || lead.stage === 'new' || lead.status === 'raw') {
+                    lead.stage = getStageFromTier(lead.tier, lead.email_type);
+                }
+
+                lead.status = lead.status === 'dead' ? 'dead' : (lead.score > 0 ? 'validated' : 'raw');
+            });
+
+            saveLeads();
+            render();
+            showToast(`Cleaned! ${dupes} dupes removed, ${junkRemoved} junk removed, ${scored} leads scored & tiered.`);
+        }
+
+        // ========== CSV IMPORT ==========
+        const COLUMN_MAP = {
+            'company_name': ['company_name', 'company', 'organization', 'org', 'company name', 'account'],
+            'contact_first': ['contact_first', 'first_name', 'first name', 'firstname', 'given_name', 'first'],
+            'contact_last': ['contact_last', 'last_name', 'last name', 'lastname', 'surname', 'family_name', 'last'],
+            'email': ['email', 'email_address', 'email address', 'e-mail', 'mail'],
+            'phone': ['phone', 'phone_number', 'phone number', 'telephone', 'mobile', 'cell'],
+            'title': ['title', 'job_title', 'job title', 'position', 'role', 'designation'],
+            'linkedin_url': ['linkedin_url', 'linkedin', 'linkedin url', 'linkedin_profile', 'profile_url'],
+            'website': ['website', 'url', 'domain', 'company_url', 'web', 'site'],
+            'industry': ['industry', 'sector', 'vertical', 'category'],
+            'employee_count': ['employee_count', 'employees', 'company_size', 'size', 'headcount', 'num_employees'],
+            'source': ['source', 'source_file', 'lead_source', 'origin', 'list'],
+            'notes': ['notes', 'note', 'comments', 'description']
+        };
+
+        function mapColumn(header) {
+            const h = header.toLowerCase().trim();
+            for (const [field, aliases] of Object.entries(COLUMN_MAP)) {
+                if (aliases.includes(h)) return field;
+            }
+            // Handle "name" as full name
+            if (h === 'name' || h === 'full_name' || h === 'full name' || h === 'contact_name' || h === 'contact name') {
+                return 'full_name';
+            }
+            return null;
+        }
+
+        function parseCSV(text) {
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+            if (lines.length < 2) return [];
+
+            // Simple CSV parser handling quoted fields
+            function parseLine(line) {
+                const fields = [];
+                let current = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    const ch = line[i];
+                    if (ch === '"') {
+                        if (inQuotes && line[i + 1] === '"') {
+                            current += '"';
+                            i++;
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                    } else if (ch === ',' && !inQuotes) {
+                        fields.push(current.trim());
+                        current = '';
+                    } else {
+                        current += ch;
+                    }
+                }
+                fields.push(current.trim());
+                return fields;
+            }
+
+            const headers = parseLine(lines[0]);
+            const mapping = headers.map(h => mapColumn(h));
+
+            const rows = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = parseLine(lines[i]);
+                const row = {};
+                for (let j = 0; j < headers.length; j++) {
+                    const field = mapping[j];
+                    if (field === 'full_name') {
+                        const parts = (values[j] || '').split(/\s+/);
+                        row.contact_first = parts[0] || '';
+                        row.contact_last = parts.slice(1).join(' ') || '';
+                    } else if (field) {
+                        row[field] = values[j] || '';
+                    }
+                }
+                // Only include rows that have at least an email or company
+                if (row.email || row.company_name) {
+                    rows.push(row);
+                }
+            }
+            return rows;
+        }
+
+        function handleCSVFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                importBuffer = parseCSV(e.target.result);
+                showImportPreview(file.name);
+            };
+            reader.readAsText(file);
+        }
+
+        function showImportPreview(fileName) {
+            if (importBuffer.length === 0) {
+                document.getElementById('importPreview').innerHTML = '<p style="color: var(--red); margin-top: 16px;">No valid leads found in CSV. Make sure it has headers and at least email or company columns.</p>';
+                document.getElementById('importActions').style.display = 'none';
+                return;
+            }
+
+            const personal = importBuffer.filter(r => r.email && !isGenericEmail(r.email)).length;
+            const generic = importBuffer.filter(r => r.email && isGenericEmail(r.email)).length;
+            const noEmail = importBuffer.filter(r => !r.email).length;
+            const withTitle = importBuffer.filter(r => r.title).length;
+
+            let html = `
+                <div class="import-stats">
+                    <div class="import-stat">
+                        <div class="import-stat-value">${importBuffer.length}</div>
+                        <div class="import-stat-label">Total leads</div>
+                    </div>
+                    <div class="import-stat">
+                        <div class="import-stat-value" style="color: var(--green)">${personal}</div>
+                        <div class="import-stat-label">Personal emails</div>
+                    </div>
+                    <div class="import-stat">
+                        <div class="import-stat-value" style="color: var(--orange)">${generic}</div>
+                        <div class="import-stat-label">Generic emails</div>
+                    </div>
+                    <div class="import-stat">
+                        <div class="import-stat-value" style="color: var(--text-muted)">${noEmail}</div>
+                        <div class="import-stat-label">No email</div>
+                    </div>
+                </div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Preview (first 5 rows from <strong style="color: var(--text-secondary)">${fileName}</strong>):</p>
+                <div class="import-preview">
+                    <table class="lead-table">
+                        <tr>
+                            <th>Name</th><th>Email</th><th>Company</th><th>Title</th><th>Type</th>
+                        </tr>
+            `;
+
+            importBuffer.slice(0, 5).forEach(row => {
+                const emailType = getEmailType(row.email);
+                html += `<tr>
+                    <td>${row.contact_first || ''} ${row.contact_last || ''}</td>
+                    <td class="email-cell">${row.email || '—'}</td>
+                    <td>${row.company_name || '—'}</td>
+                    <td>${row.title || '—'}</td>
+                    <td><span class="badge badge-${emailType}">${emailType}</span></td>
+                </tr>`;
+            });
+
+            html += '</table></div>';
+            document.getElementById('importPreview').innerHTML = html;
+            document.getElementById('importActions').style.display = 'block';
+        }
+
+        function confirmImport() {
+            const now = new Date().toISOString().split('T')[0];
+            const existing = new Set(leads.map(l => (l.email || '').toLowerCase()));
+            let imported = 0;
+            let skipped = 0;
+
+            importBuffer.forEach(row => {
+                const emailKey = (row.email || '').toLowerCase();
+                if (emailKey && existing.has(emailKey)) {
+                    skipped++;
+                    return;
+                }
+                if (emailKey) existing.add(emailKey);
+
+                const lead = {
+                    id: generateId(),
+                    company_name: row.company_name || '',
+                    contact_first: row.contact_first || '',
+                    contact_last: row.contact_last || '',
+                    email: row.email || '',
+                    phone: row.phone || '',
+                    title: row.title || '',
+                    linkedin_url: row.linkedin_url || '',
+                    website: row.website || '',
+                    industry: row.industry || '',
+                    employee_count: row.employee_count || '',
+                    source: row.source || 'CSV Import',
+                    notes: row.notes || '',
+                    date_added: now,
+                    email_type: getEmailType(row.email),
+                    score: 0,
+                    tier: '',
+                    stage: 'new',
+                    status: 'raw',
+                    previously_contacted: false
+                };
+
+                lead.score = scoreLead(lead);
+                lead.tier = getTier(lead.score);
+
+                leads.push(lead);
+                imported++;
+            });
+
+            saveLeads();
+            importBuffer = [];
+            closeModal('importModal');
+            document.getElementById('csvFile').value = '';
+            render();
+            showToast(`Imported ${imported} leads. ${skipped} duplicates skipped. Run Auto-Clean to score & route.`);
+        }
+
+        // ========== CSV EXPORT ==========
+        function exportCSV() {
+            if (leads.length === 0) {
+                showToast('No leads to export.');
+                return;
+            }
+
+            const filtered = getFilteredLeads();
+            const headers = ['company_name','contact_first','contact_last','email','phone','title','linkedin_url','website','industry','employee_count','source','notes','date_added','email_type','score','tier','stage','status'];
+            const csvRows = [headers.join(',')];
+
+            filtered.forEach(lead => {
+                const row = headers.map(h => {
+                    const val = (lead[h] || '').toString();
+                    return val.includes(',') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val;
+                });
+                csvRows.push(row.join(','));
+            });
+
+            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `leads-export-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast(`Exported ${filtered.length} leads.`);
+        }
+
+        // ========== FILTERING & SORTING ==========
+        function getFilteredLeads() {
+            const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+
+            let filtered = leads.filter(lead => {
+                // Filter
+                if (currentFilter === 'all') return true;
+                if (currentFilter === 'new') return lead.stage === 'new';
+                if (currentFilter === 'outreach') return lead.stage === 'outreach';
+                if (currentFilter === 'newsletter') return lead.stage === 'newsletter';
+                if (currentFilter === 'enrich') return lead.stage === 'enrich';
+                if (currentFilter === 'archive') return lead.stage === 'archive';
+                if (currentFilter === 'tier-a') return lead.tier === 'A';
+                if (currentFilter === 'tier-b') return lead.tier === 'B';
+                if (currentFilter === 'tier-c') return lead.tier === 'C';
+                if (currentFilter === 'tier-d') return lead.tier === 'D';
+                if (currentFilter === 'tier-f') return lead.tier === 'F';
+                if (currentFilter === 'personal') return lead.email_type === 'personal';
+                if (currentFilter === 'generic') return lead.email_type === 'generic';
+                return true;
+            });
+
+            // Search
+            if (search) {
+                filtered = filtered.filter(lead => {
+                    const haystack = [lead.company_name, lead.contact_first, lead.contact_last, lead.email, lead.title, lead.industry, lead.source, lead.notes].join(' ').toLowerCase();
+                    return haystack.includes(search);
+                });
+            }
+
+            // Sort
+            const sort = document.getElementById('sortSelect')?.value || 'score-desc';
+            filtered.sort((a, b) => {
+                switch (sort) {
+                    case 'score-desc': return (b.score || 0) - (a.score || 0);
+                    case 'score-asc': return (a.score || 0) - (b.score || 0);
+                    case 'name-asc': return (a.contact_first || '').localeCompare(b.contact_first || '');
+                    case 'name-desc': return (b.contact_first || '').localeCompare(a.contact_first || '');
+                    case 'company-asc': return (a.company_name || '').localeCompare(b.company_name || '');
+                    case 'date-desc': return new Date(b.date_added || 0) - new Date(a.date_added || 0);
+                    case 'date-asc': return new Date(a.date_added || 0) - new Date(b.date_added || 0);
+                    default: return 0;
+                }
+            });
+
+            return filtered;
+        }
+
+        // ========== RENDERING ==========
+        function render() {
+            renderStats();
+            renderSidebarCounts();
+            renderLeads();
+        }
+
+        function renderStats() {
+            const total = leads.length;
+            const tierA = leads.filter(l => l.tier === 'A').length;
+            const tierB = leads.filter(l => l.tier === 'B').length;
+            const personal = leads.filter(l => l.email_type === 'personal').length;
+            const generic = leads.filter(l => l.email_type === 'generic').length;
+            const outreach = leads.filter(l => l.stage === 'outreach').length;
+
+            document.getElementById('statsRow').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Total Leads</div>
+                    <div class="stat-value">${total}</div>
+                    <div class="stat-detail">In database</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Tier A (Hot)</div>
+                    <div class="stat-value" style="color: var(--green)">${tierA}</div>
+                    <div class="stat-detail">Score 70+</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Tier B (Warm)</div>
+                    <div class="stat-value" style="color: var(--blue)">${tierB}</div>
+                    <div class="stat-detail">Score 50-69</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Personal Emails</div>
+                    <div class="stat-value" style="color: var(--cyan)">${personal}</div>
+                    <div class="stat-detail">${total ? Math.round(personal/total*100) : 0}% of total</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Generic Emails</div>
+                    <div class="stat-value" style="color: var(--orange)">${generic}</div>
+                    <div class="stat-detail">Need enrichment</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Outreach Ready</div>
+                    <div class="stat-value" style="color: var(--accent)">${outreach}</div>
+                    <div class="stat-detail">In outreach queue</div>
+                </div>
+            `;
+        }
+
+        function renderSidebarCounts() {
+            const counts = {
+                all: leads.length,
+                new: leads.filter(l => l.stage === 'new').length,
+                outreach: leads.filter(l => l.stage === 'outreach').length,
+                newsletter: leads.filter(l => l.stage === 'newsletter').length,
+                enrich: leads.filter(l => l.stage === 'enrich').length,
+                archive: leads.filter(l => l.stage === 'archive').length,
+                'tier-a': leads.filter(l => l.tier === 'A').length,
+                'tier-b': leads.filter(l => l.tier === 'B').length,
+                'tier-c': leads.filter(l => l.tier === 'C').length,
+                'tier-d': leads.filter(l => l.tier === 'D').length,
+                'tier-f': leads.filter(l => l.tier === 'F').length,
+                personal: leads.filter(l => l.email_type === 'personal').length,
+                generic: leads.filter(l => l.email_type === 'generic').length,
+            };
+
+            for (const [key, val] of Object.entries(counts)) {
+                const el = document.getElementById(`count-${key}`);
+                if (el) el.textContent = val;
+            }
+        }
+
+        function renderLeads() {
+            const area = document.getElementById('contentArea');
+
+            if (currentView === 'pipeline') {
+                renderPipeline(area);
+                return;
+            }
+
+            const filtered = getFilteredLeads();
+
+            if (leads.length === 0) {
+                area.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#128203;</div>
+                        <div class="empty-state-title">No leads yet</div>
+                        <div class="empty-state-desc">Import a CSV or add leads manually to get started.</div>
+                        <button class="btn btn-accent" onclick="openImportModal()">Import CSV</button>
+                        &nbsp;
+                        <button class="btn" onclick="openAddModal()">+ Add Lead</button>
+                        &nbsp;
+                        <button class="btn" onclick="loadSampleData()">Load Sample Data</button>
+                    </div>
+                `;
+                return;
+            }
+
+            if (filtered.length === 0) {
+                area.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#128269;</div>
+                        <div class="empty-state-title">No matching leads</div>
+                        <div class="empty-state-desc">Try adjusting your search or filter.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `<table class="lead-table">
+                <thead><tr>
+                    <th>Score</th>
+                    <th>Tier</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Company</th>
+                    <th>Title</th>
+                    <th>Email Type</th>
+                    <th>Stage</th>
+                    <th>Source</th>
+                    <th>Added</th>
+                    <th></th>
+                </tr></thead><tbody>`;
+
+            filtered.forEach(lead => {
+                const tier = lead.tier || '—';
+                const tierClass = tier ? `badge-${tier.toLowerCase()}` : '';
+                const emailTypeClass = lead.email_type === 'personal' ? 'badge-personal' : 'badge-generic';
+                const stageClass = `badge-${lead.stage || 'new'}`;
+
+                html += `<tr>
+                    <td><strong>${lead.score || 0}</strong></td>
+                    <td><span class="badge ${tierClass}">${tier}</span></td>
+                    <td class="company-cell">${lead.contact_first || ''} ${lead.contact_last || ''}</td>
+                    <td class="email-cell">${lead.email || '—'}</td>
+                    <td>${lead.company_name || '—'}</td>
+                    <td>${lead.title || '—'}</td>
+                    <td><span class="badge ${emailTypeClass}">${lead.email_type || '?'}</span></td>
+                    <td><span class="badge ${stageClass}">${lead.stage || 'new'}</span></td>
+                    <td>${lead.source || '—'}</td>
+                    <td>${lead.date_added || '—'}</td>
+                    <td class="actions-cell">
+                        <button class="actions-btn" onclick="editLead('${lead.id}')" title="Edit">&#9998;</button>
+                        <button class="actions-btn" onclick="deleteLead('${lead.id}')" title="Delete">&#10005;</button>
+                    </td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            html += `<p style="font-size: 12px; color: var(--text-muted); margin-top: 12px;">Showing ${filtered.length} of ${leads.length} leads</p>`;
+            area.innerHTML = html;
+        }
+
+        function renderPipeline(area) {
+            const stages = [
+                { key: 'new', label: 'New / Unprocessed', color: 'var(--cyan)' },
+                { key: 'outreach', label: 'Outreach Ready', color: 'var(--accent)' },
+                { key: 'newsletter', label: 'Newsletter', color: 'var(--purple)' },
+                { key: 'enrich', label: 'Needs Enrichment', color: 'var(--yellow)' },
+                { key: 'archive', label: 'Archived', color: 'var(--text-muted)' },
+            ];
+
+            let html = '<div class="pipeline">';
+            stages.forEach(stage => {
+                const stageLeads = leads.filter(l => l.stage === stage.key).sort((a, b) => (b.score || 0) - (a.score || 0));
+                html += `
+                    <div class="pipeline-col">
+                        <div class="pipeline-col-header">
+                            <span class="pipeline-col-title" style="color: ${stage.color}">${stage.label}</span>
+                            <span class="pipeline-col-count">${stageLeads.length}</span>
+                        </div>
+                `;
+
+                stageLeads.slice(0, 20).forEach(lead => {
+                    const tier = lead.tier || '?';
+                    html += `
+                        <div class="pipeline-card" onclick="editLead('${lead.id}')">
+                            <div class="pipeline-card-name">
+                                <span class="badge badge-${tier.toLowerCase()}" style="margin-right: 4px;">${tier}</span>
+                                ${lead.contact_first || ''} ${lead.contact_last || ''}
+                            </div>
+                            <div class="pipeline-card-company">${lead.company_name || '—'} ${lead.title ? '· ' + lead.title : ''}</div>
+                            <div class="pipeline-card-email">${lead.email || 'No email'}</div>
+                        </div>
+                    `;
+                });
+
+                if (stageLeads.length > 20) {
+                    html += `<p style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 8px;">+ ${stageLeads.length - 20} more</p>`;
+                }
+
+                if (stageLeads.length === 0) {
+                    html += `<p style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px 0;">No leads</p>`;
+                }
+
+                html += '</div>';
+            });
+            html += '</div>';
+            area.innerHTML = html;
+        }
+
+        // ========== ACTIONS ==========
+        function setFilter(filter, el) {
+            currentFilter = filter;
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            if (el) el.classList.add('active');
+            renderLeads();
+        }
+
+        function setView(view, el) {
+            currentView = view;
+            document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+            if (el) el.classList.add('active');
+            document.getElementById('toolbar').style.display = view === 'pipeline' ? 'none' : 'flex';
+            renderLeads();
+        }
+
+        function openImportModal() {
+            importBuffer = [];
+            document.getElementById('importPreview').innerHTML = '';
+            document.getElementById('importActions').style.display = 'none';
+            document.getElementById('importModal').classList.add('active');
+        }
+
+        function openAddModal() {
+            document.getElementById('leadModalTitle').textContent = 'Add Lead';
+            document.getElementById('editLeadId').value = '';
+            ['leadFirst','leadLast','leadEmail','leadPhone','leadCompany','leadTitle','leadWebsite','leadLinkedin','leadIndustry','leadEmployees','leadSource','leadNotes'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+            document.getElementById('leadStage').value = 'new';
+            document.getElementById('leadModal').classList.add('active');
+        }
+
+        function editLead(id) {
+            const lead = leads.find(l => l.id === id);
+            if (!lead) return;
+
+            document.getElementById('leadModalTitle').textContent = 'Edit Lead';
+            document.getElementById('editLeadId').value = id;
+            document.getElementById('leadFirst').value = lead.contact_first || '';
+            document.getElementById('leadLast').value = lead.contact_last || '';
+            document.getElementById('leadEmail').value = lead.email || '';
+            document.getElementById('leadPhone').value = lead.phone || '';
+            document.getElementById('leadCompany').value = lead.company_name || '';
+            document.getElementById('leadTitle').value = lead.title || '';
+            document.getElementById('leadWebsite').value = lead.website || '';
+            document.getElementById('leadLinkedin').value = lead.linkedin_url || '';
+            document.getElementById('leadIndustry').value = lead.industry || '';
+            document.getElementById('leadEmployees').value = lead.employee_count || '';
+            document.getElementById('leadStage').value = lead.stage || 'new';
+            document.getElementById('leadSource').value = lead.source || '';
+            document.getElementById('leadNotes').value = lead.notes || '';
+            document.getElementById('leadModal').classList.add('active');
+        }
+
+        function saveLead() {
+            const id = document.getElementById('editLeadId').value;
+            const data = {
+                company_name: document.getElementById('leadCompany').value,
+                contact_first: document.getElementById('leadFirst').value,
+                contact_last: document.getElementById('leadLast').value,
+                email: document.getElementById('leadEmail').value,
+                phone: document.getElementById('leadPhone').value,
+                title: document.getElementById('leadTitle').value,
+                linkedin_url: document.getElementById('leadLinkedin').value,
+                website: document.getElementById('leadWebsite').value,
+                industry: document.getElementById('leadIndustry').value,
+                employee_count: document.getElementById('leadEmployees').value,
+                stage: document.getElementById('leadStage').value,
+                source: document.getElementById('leadSource').value,
+                notes: document.getElementById('leadNotes').value,
+            };
+
+            if (id) {
+                // Edit existing
+                const lead = leads.find(l => l.id === id);
+                if (lead) {
+                    Object.assign(lead, data);
+                    lead.email_type = getEmailType(lead.email);
+                    lead.score = scoreLead(lead);
+                    lead.tier = getTier(lead.score);
+                }
+            } else {
+                // New lead
+                const lead = {
+                    id: generateId(),
+                    ...data,
+                    date_added: new Date().toISOString().split('T')[0],
+                    email_type: getEmailType(data.email),
+                    status: 'raw',
+                    previously_contacted: false,
+                    score: 0,
+                    tier: '',
+                };
+                lead.score = scoreLead(lead);
+                lead.tier = getTier(lead.score);
+                leads.push(lead);
+            }
+
+            saveLeads();
+            closeModal('leadModal');
+            render();
+            showToast(id ? 'Lead updated.' : 'Lead added.');
+        }
+
+        function deleteLead(id) {
+            if (!confirm('Delete this lead?')) return;
+            leads = leads.filter(l => l.id !== id);
+            saveLeads();
+            render();
+            showToast('Lead deleted.');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // ========== SAMPLE DATA ==========
+        function loadSampleData() {
+            const samples = [
+                { company_name: 'GlowUp Skincare', contact_first: 'Sarah', contact_last: 'Chen', email: 'sarah@glowupskincare.com', title: 'CEO & Founder', industry: 'Beauty', employee_count: '25', website: 'glowupskincare.com', source: 'Apollo' },
+                { company_name: 'FreshFit Supplements', contact_first: 'Marcus', contact_last: 'Williams', email: 'info@freshfit.com', title: '', industry: 'Health & Wellness', employee_count: '50', website: 'freshfit.com', source: 'Trade Show' },
+                { company_name: 'PetPal Co', contact_first: 'Emily', contact_last: 'Rodriguez', email: 'emily.r@petpalco.com', title: 'Head of Marketing', industry: 'Pet Products', employee_count: '35', website: 'petpalco.com', linkedin_url: 'linkedin.com/in/emilyrod', source: 'Referral' },
+                { company_name: 'UrbanThread', contact_first: 'Jake', contact_last: 'Thompson', email: 'support@urbanthread.co', title: '', industry: 'Fashion', employee_count: '15', website: 'urbanthread.co', source: 'LinkedIn' },
+                { company_name: 'ZenHome Decor', contact_first: 'Priya', contact_last: 'Patel', email: 'priya@zenhome.com', title: 'CMO', industry: 'Home Goods', employee_count: '80', website: 'zenhome.com', linkedin_url: 'linkedin.com/in/priyapatel', source: 'Apollo' },
+                { company_name: 'NovaBaby', contact_first: 'Lisa', contact_last: 'Kim', email: 'lisa.kim@novababy.com', title: 'Ecommerce Director', industry: 'Baby Products', employee_count: '45', website: 'novababy.com', source: 'Apollo', phone: '555-0123' },
+                { company_name: 'TechGear Pro', contact_first: '', contact_last: '', email: 'sales@techgearpro.com', title: '', industry: 'Electronics', employee_count: '200', website: 'techgearpro.com', source: 'Old List 2024' },
+                { company_name: 'VitaBloom', contact_first: 'Alex', contact_last: 'Nguyen', email: 'alex@vitabloom.co', title: 'Growth Manager', industry: 'Supplements', employee_count: '20', website: 'vitabloom.co', source: 'Apollo' },
+                { company_name: 'LuxeLabel', contact_first: 'Diana', contact_last: 'Foster', email: 'hello@luxelabel.com', title: '', industry: 'Fashion', employee_count: '10', website: 'luxelabel.com', source: 'Instagram DM' },
+                { company_name: 'CleanSlate Beauty', contact_first: 'Jordan', contact_last: 'Blake', email: 'jordan@cleanslatebeauty.com', title: 'Founder', industry: 'Skincare', employee_count: '8', website: 'cleanslatebeauty.com', linkedin_url: 'linkedin.com/in/jordanblake', source: 'Referral' },
+                { company_name: 'ActivePulse', contact_first: 'Ryan', contact_last: 'Murphy', email: 'ryan.murphy@activepulse.com', title: 'Marketing Manager', industry: 'Fitness', employee_count: '60', website: 'activepulse.com', source: 'Apollo' },
+                { company_name: 'SnackHaven', contact_first: 'Tanya', contact_last: 'Brooks', email: 'contact@snackhaven.com', title: '', industry: 'Food', employee_count: '30', website: 'snackhaven.com', source: 'Trade Show' },
+                { company_name: 'BrightSmile Dental', contact_first: 'Dr. Kevin', contact_last: 'Lee', email: 'kevin@brightsmile.com', title: 'Owner', industry: 'Healthcare', employee_count: '12', website: 'brightsmile.com', source: 'Old List 2023' },
+                { company_name: 'EcoWear', contact_first: 'Maya', contact_last: 'Singh', email: 'maya@ecowear.com', title: 'DTC Director', industry: 'Apparel', employee_count: '40', website: 'ecowear.com', linkedin_url: 'linkedin.com/in/mayasingh', source: 'Apollo', phone: '555-0456' },
+                { company_name: 'KidsBright Toys', contact_first: 'Sam', contact_last: 'Davis', email: 'info@kidsbrigt.com', title: '', industry: 'Toys', employee_count: '100', website: 'kidsbright.com', source: 'Old List 2024' },
+            ];
+
+            const now = new Date();
+            samples.forEach((s, i) => {
+                // Vary dates to simulate old/new leads
+                const daysAgo = [5, 45, 10, 200, 3, 15, 400, 8, 90, 20, 7, 150, 500, 12, 300][i];
+                const date = new Date(now - daysAgo * 24 * 60 * 60 * 1000);
+
+                leads.push({
+                    id: generateId(),
+                    ...s,
+                    linkedin_url: s.linkedin_url || '',
+                    phone: s.phone || '',
+                    notes: '',
+                    date_added: date.toISOString().split('T')[0],
+                    email_type: getEmailType(s.email),
+                    score: 0,
+                    tier: '',
+                    stage: 'new',
+                    status: 'raw',
+                    previously_contacted: false,
+                });
+            });
+
+            saveLeads();
+            render();
+            showToast('Loaded 15 sample leads. Hit Auto-Clean to score & route them!');
+        }
+
+        // ========== DRAG & DROP ==========
+        const dropZone = document.getElementById('dropZone');
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.endsWith('.csv')) handleCSVFile(file);
+            else showToast('Please drop a .csv file.');
+        });
+
+        // Close modals on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.classList.remove('active');
+            });
+        });
+
+        // ========== INIT ==========
+        loadLeads();
+        render();
+    </script>
+</body>
+</html>
