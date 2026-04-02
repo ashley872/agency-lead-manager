@@ -1,0 +1,1 @@
+{"functions":[{"bundler":"esbuild","buildData":{"runtimeAPIVersion":1},"mainFile":"/private/tmp/agency-lead-manager-sync/netlify/functions/beehiiv-proxy.mjs","name":"beehiiv-proxy","priority":10,"path":"/private/tmp/agency-lead-manager-sync/.netlify/functions/beehiiv-proxy.zip","runtime":"js"}],"system":{"arch":"arm64","platform":"darwin"},"timestamp":1775166319193,"version":1}

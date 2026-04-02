@@ -1,14 +1,13 @@
+functionsDirectory = "/private/tmp/agency-lead-manager-sync/netlify/functions"
+functionsDirectoryOrigin = "default"
 plugins = []
 headers = []
 redirects = []
 
-[functions]
-
-[functions."*"]
-
 [build]
-publish = "/private/tmp/agency-lead-manager-sync"
+publish = "/private/tmp/agency-lead-manager-sync/lead-manager"
 publishOrigin = "ui"
+functions = "/private/tmp/agency-lead-manager-sync/netlify/functions"
 
 [build.environment]
 
@@ -23,3 +22,7 @@ publishOrigin = "ui"
 [build.processing.js]
 
 [build.services]
+
+[functions]
+
+[functions."*"]

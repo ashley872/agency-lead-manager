@@ -1524,9 +1524,6 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
             <div class="sidebar-item" data-nlfilter="status-pushed" onclick="setNlFilter('status-pushed', this)">
                 Pushed <span class="count" id="nlcount-status-pushed">0</span>
             </div>
-            <div class="sidebar-item" data-nlfilter="status-in-campaign" onclick="setNlFilter('status-in-campaign', this)">
-                In Campaign <span class="count" id="nlcount-status-in-campaign">0</span>
-            </div>
             <div class="sidebar-item" data-nlfilter="status-skipped" onclick="setNlFilter('status-skipped', this)">
                 Skipped <span class="count" id="nlcount-status-skipped">0</span>
             </div>
@@ -1572,7 +1569,6 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                     <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center;">
                         <button class="btn" onclick="bulkQueueSelected()" style="font-size: 12px; padding: 6px 14px; background: rgba(192,132,252,0.15); color: var(--purple); border-color: var(--purple);">Push Selected to Beehiiv</button>
                         <button class="btn" onclick="bulkQueueAll()" style="font-size: 12px; padding: 6px 14px;">Queue All Unpushed</button>
-                        <button class="btn" onclick="bulkMoveToCampaign()" style="font-size: 12px; padding: 6px 14px; background: rgba(37,244,238,0.12); color: var(--cyan); border-color: var(--cyan);">Move Selected → Campaign</button>
                         <span style="font-size: 12px; color: var(--text-muted);" id="nlSelectionCount"></span>
                     </div>
                     <div id="nlQueueTable"></div>
@@ -1602,9 +1598,34 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                         </div>
                         <div class="form-group">
                             <label class="form-label">Default Automation ID</label>
-                            <input type="text" class="form-input" id="beehiivAutomationId" placeholder="aut_xxxxxxxx (optional)" />
+                            <input type="text" class="form-input" id="beehiivAutomationId" placeholder="aut_xxxxxxxx (fallback for all segments)" />
                             <button class="btn" onclick="loadBeehiivAutomations()" style="margin-top: 6px; font-size: 11px; padding: 3px 10px;">Load Automations</button>
                             <select class="form-select" id="beehiivAutomationSelect" onchange="document.getElementById('beehiivAutomationId').value=this.value" style="display:none; margin-top: 6px;"></select>
+                        </div>
+                        <div style="border-top: 1px solid var(--border); margin-top: 16px; padding-top: 16px;">
+                            <label class="form-label" style="color: var(--purple);">Segment → Automation Routing</label>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                                Route each segment into a different Beehiiv automation. Leave blank to use the default above.
+                                Find automation IDs in <strong>Beehiiv → Automations</strong> (starts with <code>aut_</code>).
+                            </p>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" style="font-size: 11px; color: var(--cyan);">New Sellers</label>
+                                    <input type="text" class="form-input" id="beehiivAutNewSeller" placeholder="aut_xxxxxxxx" style="font-size: 12px; padding: 6px 10px;" />
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" style="font-size: 11px; color: var(--green);">Active Sellers</label>
+                                    <input type="text" class="form-input" id="beehiivAutActiveSeller" placeholder="aut_xxxxxxxx" style="font-size: 12px; padding: 6px 10px;" />
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" style="font-size: 11px; color: var(--blue);">Agency</label>
+                                    <input type="text" class="form-input" id="beehiivAutAgency" placeholder="aut_xxxxxxxx" style="font-size: 12px; padding: 6px 10px;" />
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" style="font-size: 11px; color: #ffd700;">Enterprise</label>
+                                    <input type="text" class="form-input" id="beehiivAutEnterprise" placeholder="aut_xxxxxxxx" style="font-size: 12px; padding: 6px 10px;" />
+                                </div>
+                            </div>
                         </div>
                         <div style="border-top: 1px solid var(--border); margin-top: 16px; padding-top: 16px;">
                             <label class="form-label">Daily Drip Limit</label>
@@ -10789,6 +10810,10 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
                 api_key: document.getElementById('beehiivApiKey').value.trim(),
                 publication_id: document.getElementById('beehiivPubId').value.trim(),
                 automation_id: document.getElementById('beehiivAutomationId').value.trim(),
+                aut_new_seller: document.getElementById('beehiivAutNewSeller').value.trim(),
+                aut_active_seller: document.getElementById('beehiivAutActiveSeller').value.trim(),
+                aut_agency: document.getElementById('beehiivAutAgency').value.trim(),
+                aut_enterprise: document.getElementById('beehiivAutEnterprise').value.trim(),
                 daily_limit: parseInt(document.getElementById('beehiivDailyLimit').value) || 300,
                 double_opt_in: document.getElementById('beehiivDoubleOptIn').checked,
                 tag_country: document.getElementById('beehiivTagCountry').value.trim() || 'country-',
@@ -10805,6 +10830,10 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
             document.getElementById('beehiivApiKey').value = s.api_key || '';
             document.getElementById('beehiivPubId').value = s.publication_id || '';
             document.getElementById('beehiivAutomationId').value = s.automation_id || '';
+            document.getElementById('beehiivAutNewSeller').value = s.aut_new_seller || '';
+            document.getElementById('beehiivAutActiveSeller').value = s.aut_active_seller || '';
+            document.getElementById('beehiivAutAgency').value = s.aut_agency || '';
+            document.getElementById('beehiivAutEnterprise').value = s.aut_enterprise || '';
             document.getElementById('beehiivDailyLimit').value = s.daily_limit || 300;
             document.getElementById('beehiivLimitVal').textContent = s.daily_limit || 300;
             document.getElementById('beehiivDoubleOptIn').checked = !!s.double_opt_in;
@@ -10812,6 +10841,19 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
             document.getElementById('beehiivTagSegment').value = s.tag_segment || 'nl-';
             document.getElementById('beehiivTagTier').value = s.tag_tier || 'tier-';
             document.getElementById('beehiivTagIndustry').value = s.tag_industry || 'ind-';
+        }
+
+        // Get the right Beehiiv automation ID for a lead based on segment
+        function getBeehiivAutomationForLead(lead) {
+            const s = getBeehiivSettings();
+            const seg = getNewsletterSegment(lead);
+            const segMap = {
+                'new-seller': s.aut_new_seller,
+                'active-seller': s.aut_active_seller,
+                'agency': s.aut_agency,
+                'enterprise': s.aut_enterprise,
+            };
+            return segMap[seg] || s.automation_id || '';
         }
 
         function setNlFilter(f, el) {
@@ -10948,7 +10990,8 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
             if (lead.company_name) payload.custom_fields.push({ name: 'company', value: lead.company_name });
             if (lead.title) payload.custom_fields.push({ name: 'title', value: lead.title });
             if (tags.length > 0) payload.tags = tags;
-            if (s.automation_id) payload.automation_ids = [s.automation_id];
+            const autId = getBeehiivAutomationForLead(lead);
+            if (autId) payload.automation_ids = [autId];
             if (s.double_opt_in) payload.double_opt_in = true;
 
             const result = await beehiivApiCall('create_subscription', payload);
@@ -11226,7 +11269,6 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
         function renderNlDashboard() {
             const nlLeads = getNewsletterLeads();
             const pushed = nlLeads.filter(l => l.beehiiv_status === 'pushed').length;
-            const inCampaign = nlLeads.filter(l => l.beehiiv_status === 'in-campaign').length;
             const failed = nlLeads.filter(l => l.beehiiv_status === 'failed').length;
             const skipped = nlLeads.filter(l => l.beehiiv_status === 'skipped').length;
             const queued = nlLeads.filter(l => !l.beehiiv_status || l.beehiiv_status === 'queued').length;
@@ -11238,7 +11280,7 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
             const maxH = Math.max(...history.map(h => h.count), 1);
 
             let html = `
-                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px;">
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
                     <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center;">
                         <div style="font-size: 28px; font-weight: 700; color: var(--purple);">${todayCount}</div>
                         <div style="font-size: 12px; color: var(--text-muted);">Pushed Today</div>
@@ -11247,10 +11289,6 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
                     <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center;">
                         <div style="font-size: 28px; font-weight: 700; color: var(--green);">${pushed}</div>
                         <div style="font-size: 12px; color: var(--text-muted);">Pushed to Beehiiv</div>
-                    </div>
-                    <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center;">
-                        <div style="font-size: 28px; font-weight: 700; color: var(--cyan);">${inCampaign}</div>
-                        <div style="font-size: 12px; color: var(--text-muted);">In Campaign</div>
                     </div>
                     <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center;">
                         <div style="font-size: 28px; font-weight: 700; color: var(--text-primary);">${queued}</div>
@@ -11309,7 +11347,7 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
             const filtered = filterNlLeads(nlLeads);
 
             // Update sidebar counts
-            const counts = { all: nlLeads.length, 'seg-new-seller': 0, 'seg-active-seller': 0, 'seg-agency': 0, 'seg-enterprise': 0, 'status-queued': 0, 'status-pushed': 0, 'status-in-campaign': 0, 'status-skipped': 0, 'status-failed': 0 };
+            const counts = { all: nlLeads.length, 'seg-new-seller': 0, 'seg-active-seller': 0, 'seg-agency': 0, 'seg-enterprise': 0, 'status-queued': 0, 'status-pushed': 0, 'status-skipped': 0, 'status-failed': 0 };
             nlLeads.forEach(l => {
                 const seg = getNewsletterSegment(l);
                 if (seg) counts['seg-' + seg] = (counts['seg-' + seg] || 0) + 1;
@@ -11354,10 +11392,11 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
                     const statusColors = { pushed: 'var(--green)', failed: 'var(--red)', skipped: 'var(--yellow)', 'in-campaign': 'var(--cyan)' };
                     const statusColor = statusColors[status] || 'var(--text-muted)';
                     const checked = nlSelectedIds.has(l.id) ? 'checked' : '';
-                    const actionBtn = status === 'pushed'
-                        ? `<button onclick="moveToSmartLead('${l.id}')" style="font-size:10px;padding:2px 8px;background:rgba(37,244,238,.12);color:var(--cyan);border:1px solid var(--cyan);border-radius:4px;cursor:pointer;" title="Push to SmartLead campaign">→ Campaign</button>`
-                        : status === 'in-campaign'
-                        ? `<span style="font-size:10px;color:var(--cyan);">in sequence</span>`
+                    const autId = getBeehiivAutomationForLead(l);
+                    const actionBtn = status === 'pushed' && autId
+                        ? `<span style="font-size:10px;color:var(--green);" title="Enrolled in automation ${autId}">in automation</span>`
+                        : status === 'pushed' && !autId
+                        ? `<span style="font-size:10px;color:var(--yellow);" title="No automation set for this segment">no automation</span>`
                         : '';
                     html += `<tr>
                         <td><input type="checkbox" ${checked} onchange="toggleNlSelect('${l.id}')" /></td>
