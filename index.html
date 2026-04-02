@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agency Clay — Lead & Brand Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%230f0f0f'/><text x='50' y='68' text-anchor='middle' font-size='52' font-weight='800' font-family='system-ui' fill='%23fe2c55'>C</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
         :root {
@@ -862,6 +863,7 @@
             <button class="btn btn-sm" onclick="cloudPushAll()" title="Push all data to cloud" style="font-size: 11px; padding: 3px 8px;">Push</button>
             <button class="btn btn-sm" onclick="cloudPullAll()" title="Pull latest from cloud" style="font-size: 11px; padding: 3px 8px;">Pull</button>
             <button class="btn btn-sm" onclick="openGuide()">How to Use</button>
+            <button class="btn btn-sm" onclick="runSmokeTest()" title="Run quick health check" style="background: rgba(74,222,128,.12); color: var(--green); border-color: var(--green);">Test</button>
             <button class="btn btn-sm" onclick="openSettings()">Settings</button>
         </div>
     </header>
@@ -11271,6 +11273,107 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
                 }
             }, 100);
         });
+    </script>
+
+    <!-- Smoke Test Modal -->
+    <div class="modal-overlay" id="smokeTestModal">
+        <div class="modal" style="max-width: 600px;">
+            <button class="modal-close" onclick="closeModal('smokeTestModal')">&times;</button>
+            <h2 style="margin-bottom: 4px;">Smoke Test</h2>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Quick health check across all features</p>
+            <div id="smokeTestResults" style="font-family: monospace; font-size: 12px; line-height: 2.2;"></div>
+            <div id="smokeTestSummary" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; font-weight: 600;"></div>
+        </div>
+    </div>
+
+    <script>
+    function runSmokeTest() {
+        const results = [];
+        let pass = 0, fail = 0;
+
+        function check(name, fn) {
+            try {
+                const ok = fn();
+                if (ok) { pass++; results.push({ name, ok: true }); }
+                else { fail++; results.push({ name, ok: false, err: 'returned false' }); }
+            } catch (e) { fail++; results.push({ name, ok: false, err: e.message }); }
+        }
+
+        // 1. Core UI
+        check('Leads tab renders', () => !!document.getElementById('leadsSection'));
+        check('Brands tab exists', () => !!document.getElementById('brandsSection'));
+        check('Dream 100 tab exists', () => !!document.getElementById('dream100Section'));
+        check('Wildcards tab exists', () => !!document.getElementById('wildcardsSection'));
+        check('Discovery tab exists', () => !!document.getElementById('discoverySection'));
+        check('Reporting tab exists', () => !!document.getElementById('reportingSection'));
+        check('Newsletter tab exists', () => !!document.getElementById('newsletterSection'));
+
+        // 2. Sidebar & Filters
+        check('Sidebar renders', () => document.querySelectorAll('.sidebar-item').length > 5);
+        check('Filter counts visible', () => document.querySelectorAll('.count').length > 3);
+
+        // 3. Core functions exist
+        check('switchSection() exists', () => typeof switchSection === 'function');
+        check('setFilter() exists', () => typeof setFilter === 'function');
+        check('renderLeads() exists', () => typeof renderLeads === 'function');
+        check('runAutoClean() exists', () => typeof runAutoClean === 'function');
+        check('loadSampleData() exists', () => typeof loadSampleData === 'function');
+        check('getTier() exists', () => typeof getTier === 'function');
+        check('getEmailType() exists', () => typeof getEmailType === 'function');
+
+        // 4. Scoring logic
+        check('Tier A = score 70+', () => getTier(75) === 'A');
+        check('Tier B = score 50-69', () => getTier(55) === 'B');
+        check('Tier C = score 30-49', () => getTier(35) === 'C');
+        check('Tier F = score <10', () => getTier(5) === 'F');
+
+        // 5. Email detection
+        check('Detects generic email (info@)', () => getEmailType('info@company.com') === 'generic');
+        check('Detects generic email (support@)', () => getEmailType('support@company.com') === 'generic');
+        check('Detects personal email', () => getEmailType('john@company.com') === 'personal');
+
+        // 6. localStorage
+        check('localStorage accessible', () => { localStorage.setItem('_smoke', '1'); const v = localStorage.getItem('_smoke'); localStorage.removeItem('_smoke'); return v === '1'; });
+        check('Leads array initialised', () => Array.isArray(leads));
+
+        // 7. Section switching
+        check('Can switch to Brands', () => { switchSection('brands'); return document.getElementById('brandsSection').style.display !== 'none'; });
+        check('Can switch to Newsletter', () => { switchSection('newsletter'); return document.getElementById('newsletterSection').style.display !== 'none'; });
+        check('Can switch back to Leads', () => { switchSection('leads'); return document.getElementById('leadsSection').style.display !== 'none'; });
+
+        // 8. Newsletter / Beehiiv
+        check('Beehiiv API key field exists', () => !!document.getElementById('beehiivApiKey'));
+        check('Beehiiv pub ID field exists', () => !!document.getElementById('beehiivPubId'));
+        check('Drip feed button exists', () => !!document.getElementById('btnStartDrip'));
+
+        // 9. Settings & APIs
+        check('Settings modal exists', () => !!document.getElementById('settingsModal'));
+        check('Apollo API key field exists', () => !!document.getElementById('apolloApiKey'));
+        check('Claude API key field exists', () => !!document.getElementById('claudeApiKey'));
+        check('SmartLead API key field exists', () => !!document.getElementById('smartleadApiKey'));
+
+        // 10. Modals
+        check('Import modal exists', () => !!document.getElementById('importModal'));
+        check('Edit modal exists', () => !!document.getElementById('editModal'));
+        check('Guide modal exists', () => !!document.getElementById('guideModal'));
+
+        // Render results
+        const html = results.map(r =>
+            `<div style="display:flex;align-items:center;gap:8px;">` +
+            `<span style="color:${r.ok ? 'var(--green)' : 'var(--red)'};font-size:14px;">${r.ok ? '✓' : '✗'}</span>` +
+            `<span style="color:${r.ok ? 'var(--text-secondary)' : 'var(--red)'}">${r.name}</span>` +
+            `${r.err && !r.ok ? `<span style="color:var(--text-muted);font-size:11px;">— ${r.err}</span>` : ''}` +
+            `</div>`
+        ).join('');
+
+        document.getElementById('smokeTestResults').innerHTML = html;
+        document.getElementById('smokeTestSummary').innerHTML =
+            `<span style="color:var(--green);">${pass} passed</span>` +
+            (fail ? ` &nbsp;·&nbsp; <span style="color:var(--red);">${fail} failed</span>` : '') +
+            ` &nbsp;·&nbsp; <span style="color:var(--text-muted);">${pass + fail} total</span>`;
+
+        document.getElementById('smokeTestModal').classList.add('active');
+    }
     </script>
 </body>
 </html>
