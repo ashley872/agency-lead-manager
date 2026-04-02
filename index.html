@@ -8671,6 +8671,7 @@ ${JSON.stringify(batchData)}`
             const log = getActivityLog();
             const typeColors = {
                 smartlead_push: '#6c63ff', smartlead_sync: '#6c63ff',
+                beehiiv: 'var(--purple)', campaign: 'var(--cyan)',
                 snapshot: 'var(--cyan)', tts_check: 'var(--accent)',
                 import: 'var(--green)', clean: 'var(--green)',
                 export: 'var(--yellow)', sync: 'var(--cyan)',
@@ -8679,6 +8680,7 @@ ${JSON.stringify(batchData)}`
             };
             const typeLabels = {
                 smartlead_push: 'SmartLead', smartlead_sync: 'SmartLead',
+                beehiiv: 'Beehiiv', campaign: 'Campaign',
                 snapshot: 'Snapshot', tts_check: 'TTS Check',
                 import: 'Import', clean: 'AI Clean',
                 export: 'Export', sync: 'Cloud Sync',
@@ -8706,8 +8708,9 @@ ${JSON.stringify(batchData)}`
         }
 
         function renderSmartLeadStats(area) {
+            const apiKey = localStorage.getItem('agencyclay_smartlead_key');
+            const campaignId = localStorage.getItem('agencyclay_smartlead_campaign');
             const stats = JSON.parse(localStorage.getItem('agencyclay_smartlead_stats') || 'null');
-            const leadStats = JSON.parse(localStorage.getItem('agencyclay_smartlead_lead_stats') || 'null');
             const pushedLeads = leads.filter(l => l.smartlead_pushed);
             const repliedLeads = leads.filter(l => l.smartlead_replied);
             const statusCounts = {};
@@ -8716,49 +8719,79 @@ ${JSON.stringify(batchData)}`
                 statusCounts[st] = (statusCounts[st] || 0) + 1;
             });
 
+            // Not configured state
+            if (!apiKey || !campaignId) {
+                area.innerHTML = `
+                    <h2 style="margin-bottom: 16px;">SmartLead Campaign Stats</h2>
+                    <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 32px; text-align: center;">
+                        <div style="font-size: 36px; margin-bottom: 12px;">📧</div>
+                        <h3 style="margin-bottom: 8px;">SmartLead Not Connected</h3>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px; max-width: 400px; margin-left: auto; margin-right: auto;">
+                            To see campaign stats, add your SmartLead API key and select a campaign in <strong>Settings</strong>.
+                        </p>
+                        <button class="btn" onclick="openSettings()" style="background: #1a1a2e; border-color: #6c63ff; color: #6c63ff;">Open Settings</button>
+                    </div>
+                    ${pushedLeads.length > 0 ? `
+                        <div style="margin-top: 20px; padding: 12px 16px; background: rgba(255,200,0,.08); border: 1px solid rgba(255,200,0,.2); border-radius: 8px; font-size: 13px; color: var(--yellow);">
+                            You have ${pushedLeads.length} leads marked as pushed to SmartLead but can't sync their status. Connect SmartLead in Settings to see opens, replies, and lead status.
+                        </div>
+                    ` : ''}
+                `;
+                return;
+            }
+
             // SmartLead analytics fields
             const sent = stats?.sent_count || stats?.emails_sent || stats?.sent || 0;
             const opened = stats?.unique_opened_count || stats?.opened || stats?.unique_opened || 0;
             const replied = stats?.reply_count || stats?.replied || stats?.unique_replies || repliedLeads.length;
             const clicked = stats?.click_count || stats?.clicked || stats?.unique_clicks || 0;
             const bounced = stats?.bounce_count || stats?.bounced || 0;
+            const openRate = sent > 0 ? ((opened / sent) * 100).toFixed(1) : '—';
+            const replyRate = sent > 0 ? ((replied / sent) * 100).toFixed(1) : '—';
 
             area.innerHTML = `
                 <h2 style="margin-bottom: 16px;">SmartLead Campaign Stats</h2>
-                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                    <button class="btn" onclick="syncSmartLeadStatus().then(() => { showToast('SmartLead synced.'); renderReporting(); })" style="background: #1a1a2e; border-color: #6c63ff; color: #6c63ff;">Sync from SmartLead</button>
+                <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center;">
+                    <button class="btn" onclick="syncSmartLeadStatus().then(() => { showToast('SmartLead synced.'); renderReporting(); }).catch(e => showToast('Sync failed: ' + e.message, true))" style="background: #1a1a2e; border-color: #6c63ff; color: #6c63ff;">Sync from SmartLead</button>
+                    ${stats?.last_synced ? `<span style="font-size: 11px; color: var(--text-muted);">Last synced: ${new Date(stats.last_synced).toLocaleString()}</span>` : `<span style="font-size: 11px; color: var(--yellow);">Not synced yet — click to pull latest data</span>`}
                 </div>
                 <div class="stats-row">
                     <div class="stat-card"><div class="stat-label">Pushed</div><div class="stat-value" style="color: #6c63ff;">${pushedLeads.length}</div></div>
                     <div class="stat-card"><div class="stat-label">Sent</div><div class="stat-value">${sent}</div></div>
-                    <div class="stat-card"><div class="stat-label">Opened</div><div class="stat-value" style="color: var(--cyan);">${opened}</div></div>
-                    <div class="stat-card"><div class="stat-label">Replied</div><div class="stat-value" style="color: var(--green);">${replied}</div></div>
+                    <div class="stat-card"><div class="stat-label">Opened</div><div class="stat-value" style="color: var(--cyan);">${opened}</div><div style="font-size: 11px; color: var(--text-muted);">${openRate}% rate</div></div>
+                    <div class="stat-card"><div class="stat-label">Replied</div><div class="stat-value" style="color: var(--green);">${replied}</div><div style="font-size: 11px; color: var(--text-muted);">${replyRate}% rate</div></div>
                     <div class="stat-card"><div class="stat-label">Clicked</div><div class="stat-value">${clicked}</div></div>
                     <div class="stat-card"><div class="stat-label">Bounced</div><div class="stat-value" style="color: var(--red);">${bounced}</div></div>
                 </div>
-                ${stats?.last_synced ? `<p style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">Last synced: ${new Date(stats.last_synced).toLocaleString()}</p>` : ''}
 
                 <h3 style="margin-top: 24px; margin-bottom: 12px;">Lead Status Breakdown</h3>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    ${Object.entries(statusCounts).map(([status, count]) => {
-                        const colors = { INTERESTED: 'var(--green)', MEETING_BOOKED: 'var(--cyan)', CLOSED: 'var(--accent)', WON: 'var(--accent)', NOT_INTERESTED: 'var(--red)', OUT_OF_OFFICE: 'var(--yellow)', REPLIED: 'var(--green)', PENDING: 'var(--text-muted)', DO_NOT_CONTACT: 'var(--red)' };
-                        return `<div style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px 20px; text-align: center;">
-                            <div style="font-size: 20px; font-weight: 700; color: ${colors[status] || 'var(--text-secondary)'};">${count}</div>
-                            <div style="font-size: 11px; color: var(--text-muted); text-transform: capitalize;">${status.replace(/_/g, ' ').toLowerCase()}</div>
-                        </div>`;
-                    }).join('') || '<p style="color: var(--text-muted);">No leads pushed to SmartLead yet.</p>'}
-                </div>
+                ${Object.keys(statusCounts).length === 0
+                    ? `<p style="color: var(--text-muted);">${pushedLeads.length > 0 ? 'Click "Sync from SmartLead" to pull lead statuses.' : 'No leads pushed to SmartLead yet. Push leads from the Leads tab.'}</p>`
+                    : `<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    ${Object.entries(statusCounts).sort((a, b) => b[1] - a[1]).map(([status, count]) => {
+                        const colors = { INTERESTED: 'var(--green)', MEETING_BOOKED: 'var(--cyan)', MEETING_COMPLETED: 'var(--cyan)', CLOSED: 'var(--accent)', WON: 'var(--accent)', NOT_INTERESTED: 'var(--red)', OUT_OF_OFFICE: 'var(--yellow)', REPLIED: 'var(--green)', PENDING: 'var(--text-muted)', DO_NOT_CONTACT: 'var(--red)', COMPLETED: 'var(--green)', IN_PROGRESS: '#6c63ff' };
+                        return \`<div style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px 20px; text-align: center; min-width: 100px;">
+                            <div style="font-size: 22px; font-weight: 700; color: \${colors[status] || 'var(--text-secondary)'};">\${count}</div>
+                            <div style="font-size: 11px; color: var(--text-muted); text-transform: capitalize;">\${status.replace(/_/g, ' ').toLowerCase()}</div>
+                        </div>\`;
+                    }).join('')}
+                </div>`}
 
-                <h3 style="margin-top: 24px; margin-bottom: 12px;">Recent Replies</h3>
+                <h3 style="margin-top: 24px; margin-bottom: 12px;">Recent Replies (${repliedLeads.length})</h3>
                 <div style="max-height: 300px; overflow-y: auto;">
-                    ${repliedLeads.length === 0 ? '<p style="color: var(--text-muted);">No replies yet. Sync from SmartLead to pull status updates.</p>' : ''}
+                    ${repliedLeads.length === 0
+                        ? `<p style="color: var(--text-muted);">${stats ? 'No replies received yet.' : 'Sync from SmartLead to pull reply data.'}</p>`
+                        : ''}
                     ${repliedLeads.slice(0, 20).map(l => `
-                        <div style="padding: 8px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between;">
+                        <div style="padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <strong>${l.contact_first} ${l.contact_last}</strong> — ${l.company_name || ''}
-                                <div style="font-size: 12px; color: var(--cyan);">${l.email}</div>
+                                <strong>${l.contact_first || ''} ${l.contact_last || ''}</strong> <span style="color: var(--text-muted);">—</span> ${l.company_name || ''}
+                                <div style="font-size: 12px; color: var(--cyan); margin-top: 2px;">${l.email}</div>
                             </div>
-                            <div style="font-size: 11px; color: var(--text-muted);">${l.smartlead_replied_date ? new Date(l.smartlead_replied_date).toLocaleDateString() : ''}</div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 11px; color: var(--text-muted);">${l.smartlead_replied_date ? new Date(l.smartlead_replied_date).toLocaleDateString() : ''}</div>
+                                ${l.smartlead_status ? `<span class="badge" style="font-size: 10px; padding: 1px 6px; background: rgba(74,222,128,.12); color: var(--green);">${l.smartlead_status.replace(/_/g, ' ').toLowerCase()}</span>` : ''}
+                            </div>
                         </div>
                     `).join('')}
                 </div>
@@ -8834,62 +8867,78 @@ ${JSON.stringify(batchData)}`
 
         // ========== CONVERSION FUNNEL ==========
         function renderConversionFunnel(area) {
+            // Funnel stages in pipeline order — each stage represents leads currently AT that stage
             const funnelStages = [
                 { key: 'new', label: 'New Leads', color: 'var(--cyan)' },
-                { key: 'outreach', label: 'Outreach', color: 'var(--accent)' },
+                { key: 'outreach', label: 'In Outreach', color: 'var(--accent)' },
                 { key: 'replied', label: 'Replied', color: '#00c8ff' },
-                { key: 'meeting', label: 'Meeting', color: 'var(--green)' },
-                { key: 'proposal', label: 'Proposal', color: '#ffd700' },
+                { key: 'meeting', label: 'Meeting Booked', color: 'var(--green)' },
+                { key: 'proposal', label: 'Proposal Sent', color: '#ffd700' },
                 { key: 'closed', label: 'Closed Won', color: 'var(--green)' },
+                { key: 'lost', label: 'Lost / No Reply', color: 'var(--red)' },
             ];
 
             const stageCounts = {};
             leads.forEach(l => { stageCounts[l.stage || 'new'] = (stageCounts[l.stage || 'new'] || 0) + 1; });
 
-            // Cumulative: each stage includes leads that have passed through it
-            // For conversion rate, compare adjacent stages
-            const totalLeads = leads.length;
+            // Cumulative: count leads that have reached this stage OR any later stage
+            const stageOrder = ['new', 'outreach', 'replied', 'meeting', 'proposal', 'closed'];
+            const cumulativeCounts = {};
+            stageOrder.forEach((stage, i) => {
+                cumulativeCounts[stage] = stageOrder.slice(i).reduce((sum, s) => sum + (stageCounts[s] || 0), 0);
+            });
+            cumulativeCounts.lost = stageCounts.lost || 0;
+
+            const totalInFunnel = cumulativeCounts.new || leads.length;
             const maxWidth = 100;
 
             area.innerHTML = `
-                <h2 style="margin-bottom: 16px;">Conversion Funnel</h2>
-                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Shows how leads progress through your sales pipeline stages.</p>
-                <div style="max-width: 600px;">
-                    ${funnelStages.map((stage, i) => {
-                        const count = stageCounts[stage.key] || 0;
-                        const pct = totalLeads > 0 ? ((count / totalLeads) * 100).toFixed(1) : 0;
-                        const barWidth = totalLeads > 0 ? Math.max((count / totalLeads) * maxWidth, 5) : 5;
-                        const prevCount = i > 0 ? (stageCounts[funnelStages[i - 1].key] || 0) : totalLeads;
-                        const convRate = prevCount > 0 && i > 0 ? ((count / prevCount) * 100).toFixed(0) : '';
-                        return `<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
-                            <div style="min-width: 100px; text-align: right; font-size: 13px; color: var(--text-secondary);">${stage.label}</div>
+                <h2 style="margin-bottom: 8px;">Conversion Funnel</h2>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Cumulative — each stage shows leads that have reached it or progressed further.</p>
+                <div style="max-width: 650px;">
+                    ${funnelStages.filter(s => s.key !== 'lost').map((stage, i) => {
+                        const cumCount = cumulativeCounts[stage.key] || 0;
+                        const currentCount = stageCounts[stage.key] || 0;
+                        const barWidth = totalInFunnel > 0 ? Math.max((cumCount / totalInFunnel) * maxWidth, 4) : 4;
+                        const pct = totalInFunnel > 0 ? ((cumCount / totalInFunnel) * 100).toFixed(1) : 0;
+                        return \`<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
+                            <div style="min-width: 110px; text-align: right; font-size: 13px; color: var(--text-secondary);">\${stage.label}</div>
                             <div style="flex: 1; position: relative;">
-                                <div style="width: ${barWidth}%; background: ${stage.color}; height: 32px; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; min-width: 40px;">
-                                    <span style="font-size: 13px; font-weight: 700; color: var(--bg-primary);">${count}</span>
+                                <div style="width: \${barWidth}%; background: \${stage.color}; height: 34px; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; min-width: 50px;">
+                                    <span style="font-size: 13px; font-weight: 700; color: var(--bg-primary);">\${cumCount}</span>
                                 </div>
                             </div>
-                            <div style="min-width: 50px; font-size: 12px; color: var(--text-muted);">${pct}%</div>
-                            ${convRate ? `<div style="min-width: 60px; font-size: 11px; color: var(--orange);">${convRate}% conv</div>` : '<div style="min-width: 60px;"></div>'}
-                        </div>`;
+                            <div style="min-width: 50px; font-size: 12px; color: var(--text-muted);">\${pct}%</div>
+                            <div style="min-width: 60px; font-size: 11px; color: var(--text-muted);">\${currentCount} now</div>
+                        </div>\`;
                     }).join('')}
+                    ${(stageCounts.lost || 0) > 0 ? \`<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px; margin-top: 12px; opacity: 0.7;">
+                        <div style="min-width: 110px; text-align: right; font-size: 13px; color: var(--red);">Lost</div>
+                        <div style="flex: 1;"><div style="width: \${Math.max((stageCounts.lost / totalInFunnel) * maxWidth, 4)}%; background: var(--red); height: 34px; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; min-width: 50px;">
+                            <span style="font-size: 13px; font-weight: 700; color: var(--bg-primary);">\${stageCounts.lost}</span>
+                        </div></div>
+                        <div style="min-width: 50px;"></div><div style="min-width: 60px;"></div>
+                    </div>\` : ''}
                 </div>
 
-                <h3 style="margin-top: 30px; margin-bottom: 12px;">Stage Conversion Rates</h3>
+                <h3 style="margin-top: 30px; margin-bottom: 12px;">Stage-to-Stage Conversion</h3>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Of leads that reached each stage, what % progressed to the next.</p>
                 <table class="lead-table"><thead><tr>
-                    <th>From</th><th>To</th><th>Conversion</th><th>Drop-off</th>
+                    <th>Stage</th><th>Reached</th><th>Next Stage</th><th>Progressed</th><th>Conversion</th>
                 </tr></thead><tbody>
-                ${funnelStages.slice(0, -1).map((stage, i) => {
-                    const fromCount = stageCounts[stage.key] || 0;
-                    const toStage = funnelStages[i + 1];
-                    const toCount = stageCounts[toStage.key] || 0;
-                    const rate = fromCount > 0 ? ((toCount / fromCount) * 100).toFixed(1) : '—';
-                    const dropoff = fromCount > 0 ? (((fromCount - toCount) / fromCount) * 100).toFixed(1) : '—';
-                    return `<tr>
-                        <td style="color: ${stage.color};">${stage.label} (${fromCount})</td>
-                        <td style="color: ${toStage.color};">${toStage.label} (${toCount})</td>
-                        <td style="color: var(--green); font-weight: 600;">${rate}%</td>
-                        <td style="color: var(--red);">${dropoff}%</td>
-                    </tr>`;
+                ${stageOrder.slice(0, -1).map((stageKey, i) => {
+                    const stage = funnelStages.find(s => s.key === stageKey);
+                    const nextStage = funnelStages.find(s => s.key === stageOrder[i + 1]);
+                    const reached = cumulativeCounts[stageKey] || 0;
+                    const progressed = cumulativeCounts[stageOrder[i + 1]] || 0;
+                    const rate = reached > 0 ? ((progressed / reached) * 100).toFixed(1) : '—';
+                    return \`<tr>
+                        <td style="color: \${stage.color};">\${stage.label}</td>
+                        <td>\${reached}</td>
+                        <td style="color: \${nextStage.color};">\${nextStage.label}</td>
+                        <td>\${progressed}</td>
+                        <td style="color: var(--green); font-weight: 600;">\${rate}%</td>
+                    </tr>\`;
                 }).join('')}
                 </tbody></table>
             `;
