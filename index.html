@@ -3001,28 +3001,32 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
 
         let _saveTimer = null;
         let _cloudSyncTimer = null;
+        const LOCAL_SAVE_LIMIT = 5000; // Skip localStorage for large datasets — rely on Supabase
+
         function saveLeads() {
-            // Coalesce rapid saves — debounce 300ms to batch rapid changes
-            // (e.g. bulk stage updates, auto-clean) and avoid blocking the main thread
             clearTimeout(_saveTimer);
             _saveTimer = setTimeout(() => {
                 _saveTimer = null;
-                try {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
-                } catch(e) {
-                    console.warn('localStorage full — leads kept in memory only. Cloud sync will still work.', e);
-                    if (leads.length > 5000) {
-                        showToast(`Warning: ${leads.length.toLocaleString()} leads exceeds browser storage. Data is in memory & cloud only — do not close this tab until Push completes.`, true);
+                // Only save to localStorage if dataset is small enough
+                if (leads.length <= LOCAL_SAVE_LIMIT) {
+                    try {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+                    } catch(e) {
+                        console.warn('localStorage full — using cloud sync only.', e);
                     }
+                } else {
+                    // Large dataset: skip localStorage entirely, cloud is source of truth
+                    localStorage.removeItem(STORAGE_KEY);
                 }
-                // Auto-push to cloud (debounced 5s to batch rapid changes)
                 scheduleCloudSync();
             }, 300);
         }
         function saveLeadsSync() {
             clearTimeout(_saveTimer);
             _saveTimer = null;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+            if (leads.length <= LOCAL_SAVE_LIMIT) {
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(leads)); } catch(e) {}
+            }
         }
         function scheduleCloudSync() {
             if (!supabaseClient || !_initialSyncDone) return;
@@ -4438,17 +4442,26 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
             return true;
         }
 
+        // Cache filtered results to avoid re-filtering 66K leads on every render
+        let _filteredCache = null;
+        let _filteredCacheKey = '';
+
+        function invalidateFilterCache() { _filteredCache = null; _filteredCacheKey = ''; _countsCache = null; _countsCacheLen = -1; }
+
         function getFilteredLeads() {
             const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+            const sort = document.getElementById('sortSelect')?.value || 'score-desc';
+            const filtersToApply = activeFilters.size > 0 ? [...activeFilters].sort().join(',') : currentFilter;
+            const cacheKey = `${filtersToApply}|${search}|${sort}|${leads.length}`;
 
-            // Multi-filter: AND all active filters together
-            const filtersToApply = activeFilters.size > 0 ? [...activeFilters] : [currentFilter];
+            if (_filteredCache && _filteredCacheKey === cacheKey) return _filteredCache;
+
+            const filters = activeFilters.size > 0 ? [...activeFilters] : [currentFilter];
 
             let filtered = leads.filter(lead => {
-                return filtersToApply.every(f => matchesFilter(lead, f));
+                return filters.every(f => matchesFilter(lead, f));
             });
 
-            // Search
             if (search) {
                 filtered = filtered.filter(lead => {
                     const haystack = [lead.company_name, lead.contact_first, lead.contact_last, lead.email, lead.title, lead.industry, lead.source, lead.notes].join(' ').toLowerCase();
@@ -4456,8 +4469,6 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                 });
             }
 
-            // Sort
-            const sort = document.getElementById('sortSelect')?.value || 'score-desc';
             filtered.sort((a, b) => {
                 switch (sort) {
                     case 'score-desc': return (b.score || 0) - (a.score || 0);
@@ -4471,12 +4482,15 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                 }
             });
 
+            _filteredCache = filtered;
+            _filteredCacheKey = cacheKey;
             return filtered;
         }
 
         // ========== RENDERING ==========
         let _renderRAF = null;
         function render() {
+            invalidateFilterCache();
             // Coalesce rapid render calls into a single paint frame
             if (_renderRAF) return;
             _renderRAF = requestAnimationFrame(() => {
@@ -4494,8 +4508,12 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
             renderLeads();
         }
 
-        // Single-pass count aggregation — replaces 30+ separate .filter() calls
+        // Single-pass count aggregation — cached to avoid re-scanning 66K leads
+        let _countsCache = null;
+        let _countsCacheLen = -1;
+
         function computeCounts() {
+            if (_countsCache && _countsCacheLen === leads.length) return _countsCache;
             const c = {
                 all: 0, new: 0, dream100: 0, outreach: 0, replied: 0, meeting: 0, proposal: 0, closed: 0, lost: 0, newsletter: 0, enrich: 0, archive: 0,
                 'brand-ineligible': 0,
@@ -4607,7 +4625,10 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                 if (ctry) countries[ctry] = (countries[ctry] || 0) + 1;
             }
 
-            return { counts: c, industries, countries, conglomerates };
+            const result = { counts: c, industries, countries, conglomerates };
+            _countsCache = result;
+            _countsCacheLen = leads.length;
+            return result;
         }
 
         function renderStats() {
