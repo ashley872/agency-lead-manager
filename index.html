@@ -5432,8 +5432,8 @@ ${JSON.stringify(batchData)}` }]
             document.getElementById('routeNlActiveSeller').value = routing.nl_active_seller || '';
             document.getElementById('routeNlAgency').value = routing.nl_agency || '';
             document.getElementById('routeNlEnterprise').value = routing.nl_enterprise || '';
-            document.getElementById('supabaseUrl').value = localStorage.getItem('agencyclay_supabase_url') || '';
-            document.getElementById('supabaseAnonKey').value = localStorage.getItem('agencyclay_supabase_key') || '';
+            document.getElementById('supabaseUrl').value = localStorage.getItem('agencyclay_supabase_url') || 'https://xzfpjpppglqobbyllxpc.supabase.co';
+            document.getElementById('supabaseAnonKey').value = localStorage.getItem('agencyclay_supabase_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6ZnBqcHBwZ2xxb2JieWxseHBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NDQwNzQsImV4cCI6MjA4OTQyMDA3NH0.7h9XMGEQBxlbtMDv_wpziYO7PrCyX3EFnG3-8wPoaRw';
             // Beehiiv
             const bhSettings = getBeehiivSettings();
             document.getElementById('settingsBeehiivApiKey').value = bhSettings.api_key || '';
@@ -11507,8 +11507,8 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
 
             // Phase 3: Defer cloud sync to avoid blocking the first paint
             setTimeout(() => {
-                const _sbUrl = localStorage.getItem('agencyclay_supabase_url');
-                const _sbKey = localStorage.getItem('agencyclay_supabase_key');
+                const _sbUrl = localStorage.getItem('agencyclay_supabase_url') || 'https://xzfpjpppglqobbyllxpc.supabase.co';
+                const _sbKey = localStorage.getItem('agencyclay_supabase_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6ZnBqcHBwZ2xxb2JieWxseHBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NDQwNzQsImV4cCI6MjA4OTQyMDA3NH0.7h9XMGEQBxlbtMDv_wpziYO7PrCyX3EFnG3-8wPoaRw';
                 if (_sbUrl && _sbKey) {
                     initSupabase(_sbUrl, _sbKey);
                 } else {
