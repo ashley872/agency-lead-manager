@@ -8754,10 +8754,10 @@ ${JSON.stringify(batchData)}`
                     : `<div style="display: flex; gap: 8px; flex-wrap: wrap;">
                     ${Object.entries(statusCounts).sort((a, b) => b[1] - a[1]).map(([status, count]) => {
                         const colors = { INTERESTED: 'var(--green)', MEETING_BOOKED: 'var(--cyan)', MEETING_COMPLETED: 'var(--cyan)', CLOSED: 'var(--accent)', WON: 'var(--accent)', NOT_INTERESTED: 'var(--red)', OUT_OF_OFFICE: 'var(--yellow)', REPLIED: 'var(--green)', PENDING: 'var(--text-muted)', DO_NOT_CONTACT: 'var(--red)', COMPLETED: 'var(--green)', IN_PROGRESS: '#6c63ff' };
-                        return \`<div style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px 20px; text-align: center; min-width: 100px;">
-                            <div style="font-size: 22px; font-weight: 700; color: \${colors[status] || 'var(--text-secondary)'};">\${count}</div>
-                            <div style="font-size: 11px; color: var(--text-muted); text-transform: capitalize;">\${status.replace(/_/g, ' ').toLowerCase()}</div>
-                        </div>\`;
+                        return `<div style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px 20px; text-align: center; min-width: 100px;">
+                            <div style="font-size: 22px; font-weight: 700; color: ${colors[status] || 'var(--text-secondary)'};">${count}</div>
+                            <div style="font-size: 11px; color: var(--text-muted); text-transform: capitalize;">${status.replace(/_/g, ' ').toLowerCase()}</div>
+                        </div>`;
                     }).join('')}
                 </div>`}
 
@@ -8885,24 +8885,24 @@ ${JSON.stringify(batchData)}`
                         const currentCount = stageCounts[stage.key] || 0;
                         const barWidth = totalInFunnel > 0 ? Math.max((cumCount / totalInFunnel) * maxWidth, 4) : 4;
                         const pct = totalInFunnel > 0 ? ((cumCount / totalInFunnel) * 100).toFixed(1) : 0;
-                        return \`<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
-                            <div style="min-width: 110px; text-align: right; font-size: 13px; color: var(--text-secondary);">\${stage.label}</div>
+                        return `<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
+                            <div style="min-width: 110px; text-align: right; font-size: 13px; color: var(--text-secondary);">${stage.label}</div>
                             <div style="flex: 1; position: relative;">
-                                <div style="width: \${barWidth}%; background: \${stage.color}; height: 34px; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; min-width: 50px;">
-                                    <span style="font-size: 13px; font-weight: 700; color: var(--bg-primary);">\${cumCount}</span>
+                                <div style="width: ${barWidth}%; background: ${stage.color}; height: 34px; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; min-width: 50px;">
+                                    <span style="font-size: 13px; font-weight: 700; color: var(--bg-primary);">${cumCount}</span>
                                 </div>
                             </div>
-                            <div style="min-width: 50px; font-size: 12px; color: var(--text-muted);">\${pct}%</div>
-                            <div style="min-width: 60px; font-size: 11px; color: var(--text-muted);">\${currentCount} now</div>
-                        </div>\`;
+                            <div style="min-width: 50px; font-size: 12px; color: var(--text-muted);">${pct}%</div>
+                            <div style="min-width: 60px; font-size: 11px; color: var(--text-muted);">${currentCount} now</div>
+                        </div>`;
                     }).join('')}
-                    ${(stageCounts.lost || 0) > 0 ? \`<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px; margin-top: 12px; opacity: 0.7;">
+                    ${(stageCounts.lost || 0) > 0 ? `<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px; margin-top: 12px; opacity: 0.7;">
                         <div style="min-width: 110px; text-align: right; font-size: 13px; color: var(--red);">Lost</div>
-                        <div style="flex: 1;"><div style="width: \${Math.max((stageCounts.lost / totalInFunnel) * maxWidth, 4)}%; background: var(--red); height: 34px; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; min-width: 50px;">
-                            <span style="font-size: 13px; font-weight: 700; color: var(--bg-primary);">\${stageCounts.lost}</span>
+                        <div style="flex: 1;"><div style="width: ${Math.max((stageCounts.lost / totalInFunnel) * maxWidth, 4)}%; background: var(--red); height: 34px; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; min-width: 50px;">
+                            <span style="font-size: 13px; font-weight: 700; color: var(--bg-primary);">${stageCounts.lost}</span>
                         </div></div>
                         <div style="min-width: 50px;"></div><div style="min-width: 60px;"></div>
-                    </div>\` : ''}
+                    </div>` : ''}
                 </div>
 
                 <h3 style="margin-top: 30px; margin-bottom: 12px;">Stage-to-Stage Conversion</h3>
@@ -8916,13 +8916,13 @@ ${JSON.stringify(batchData)}`
                     const reached = cumulativeCounts[stageKey] || 0;
                     const progressed = cumulativeCounts[stageOrder[i + 1]] || 0;
                     const rate = reached > 0 ? ((progressed / reached) * 100).toFixed(1) : '—';
-                    return \`<tr>
-                        <td style="color: \${stage.color};">\${stage.label}</td>
-                        <td>\${reached}</td>
-                        <td style="color: \${nextStage.color};">\${nextStage.label}</td>
-                        <td>\${progressed}</td>
-                        <td style="color: var(--green); font-weight: 600;">\${rate}%</td>
-                    </tr>\`;
+                    return `<tr>
+                        <td style="color: ${stage.color};">${stage.label}</td>
+                        <td>${reached}</td>
+                        <td style="color: ${nextStage.color};">${nextStage.label}</td>
+                        <td>${progressed}</td>
+                        <td style="color: var(--green); font-weight: 600;">${rate}%</td>
+                    </tr>`;
                 }).join('')}
                 </tbody></table>
             `;
