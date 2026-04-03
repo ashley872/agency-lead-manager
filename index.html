@@ -1497,48 +1497,9 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
 
     <!-- ========== NEWSLETTER SECTION ========== -->
     <div class="app-body" id="newsletterSection" style="display: none;">
-        <nav class="sidebar" id="newsletterSidebar">
-            <div class="sidebar-label">Newsletter</div>
-            <div class="sidebar-item active" data-nlfilter="all" onclick="setNlFilter('all', this)">
-                All Leads <span class="count" id="nlcount-all">0</span>
-            </div>
-            <div class="sidebar-divider"></div>
-            <div class="sidebar-label">Segment</div>
-            <div class="sidebar-item" data-nlfilter="seg-new-seller" onclick="setNlFilter('seg-new-seller', this)">
-                New Sellers <span class="count" id="nlcount-seg-new-seller">0</span>
-            </div>
-            <div class="sidebar-item" data-nlfilter="seg-active-seller" onclick="setNlFilter('seg-active-seller', this)">
-                Active Sellers <span class="count" id="nlcount-seg-active-seller">0</span>
-            </div>
-            <div class="sidebar-item" data-nlfilter="seg-agency" onclick="setNlFilter('seg-agency', this)">
-                Agency <span class="count" id="nlcount-seg-agency">0</span>
-            </div>
-            <div class="sidebar-item" data-nlfilter="seg-enterprise" onclick="setNlFilter('seg-enterprise', this)">
-                Enterprise <span class="count" id="nlcount-seg-enterprise">0</span>
-            </div>
-            <div class="sidebar-divider"></div>
-            <div class="sidebar-label">Beehiiv Status</div>
-            <div class="sidebar-item" data-nlfilter="status-queued" onclick="setNlFilter('status-queued', this)">
-                Queued <span class="count" id="nlcount-status-queued">0</span>
-            </div>
-            <div class="sidebar-item" data-nlfilter="status-pushed" onclick="setNlFilter('status-pushed', this)">
-                Pushed <span class="count" id="nlcount-status-pushed">0</span>
-            </div>
-            <div class="sidebar-item" data-nlfilter="status-skipped" onclick="setNlFilter('status-skipped', this)">
-                Skipped <span class="count" id="nlcount-status-skipped">0</span>
-            </div>
-            <div class="sidebar-item" data-nlfilter="status-failed" onclick="setNlFilter('status-failed', this)">
-                Failed <span class="count" id="nlcount-status-failed">0</span>
-            </div>
-            <div class="sidebar-divider"></div>
-            <div class="sidebar-label">Actions</div>
-            <button class="btn" onclick="startBeehiivDrip()" id="btnStartDrip" style="margin: 4px 12px; font-size: 11px; padding: 6px 10px; width: calc(100% - 24px); background: rgba(192,132,252,0.15); color: var(--purple); border-color: var(--purple); font-weight: 600;">Start Drip Feed</button>
-            <button class="btn" onclick="stopBeehiivDrip()" id="btnStopDrip" style="margin: 4px 12px; font-size: 11px; padding: 6px 10px; width: calc(100% - 24px); display: none; background: rgba(248,113,113,0.15); color: var(--red); border-color: var(--red); font-weight: 600;">Stop Drip</button>
-            <button class="btn" onclick="retryFailedBeehiiv()" style="margin: 4px 12px; font-size: 11px; padding: 5px 10px; width: calc(100% - 24px);">Retry Failed</button>
-        </nav>
-        <main class="main">
+        <main class="main" style="margin-left: 0;">
             <div style="padding: 24px;">
-                <!-- Sub-tabs: Queue / Dashboard / Settings -->
+                <!-- Header with sub-tabs and actions -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <div>
                         <h2 style="margin: 0; font-size: 18px; color: var(--purple);">Newsletter — Beehiiv Drip Feed</h2>
@@ -1550,6 +1511,26 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                         <button class="section-tab active" id="nlSubQueue" onclick="switchNlSub('queue')">Queue</button>
                         <button class="section-tab" id="nlSubDashboard" onclick="switchNlSub('dashboard')">Dashboard</button>
                         <button class="section-tab" id="nlSubSettings" onclick="switchNlSub('settings')">Settings</button>
+                    </div>
+                </div>
+
+                <!-- Inline filter pills + action buttons -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="nlFilterPills">
+                        <button class="btn active" onclick="setNlFilter('all', this)" data-nlfilter="all" style="font-size: 11px; padding: 4px 10px;">All <span id="nlcount-all" style="opacity: 0.7;">0</span></button>
+                        <button class="btn" onclick="setNlFilter('seg-new-seller', this)" data-nlfilter="seg-new-seller" style="font-size: 11px; padding: 4px 10px;">New Sellers <span id="nlcount-seg-new-seller" style="opacity: 0.7;">0</span></button>
+                        <button class="btn" onclick="setNlFilter('seg-active-seller', this)" data-nlfilter="seg-active-seller" style="font-size: 11px; padding: 4px 10px;">Active <span id="nlcount-seg-active-seller" style="opacity: 0.7;">0</span></button>
+                        <button class="btn" onclick="setNlFilter('seg-agency', this)" data-nlfilter="seg-agency" style="font-size: 11px; padding: 4px 10px;">Agency <span id="nlcount-seg-agency" style="opacity: 0.7;">0</span></button>
+                        <button class="btn" onclick="setNlFilter('seg-enterprise', this)" data-nlfilter="seg-enterprise" style="font-size: 11px; padding: 4px 10px;">Enterprise <span id="nlcount-seg-enterprise" style="opacity: 0.7;">0</span></button>
+                        <span style="width: 1px; background: var(--border); margin: 0 4px;"></span>
+                        <button class="btn" onclick="setNlFilter('status-queued', this)" data-nlfilter="status-queued" style="font-size: 11px; padding: 4px 10px;">Queued <span id="nlcount-status-queued" style="opacity: 0.7;">0</span></button>
+                        <button class="btn" onclick="setNlFilter('status-pushed', this)" data-nlfilter="status-pushed" style="font-size: 11px; padding: 4px 10px;">Pushed <span id="nlcount-status-pushed" style="opacity: 0.7;">0</span></button>
+                        <button class="btn" onclick="setNlFilter('status-failed', this)" data-nlfilter="status-failed" style="font-size: 11px; padding: 4px 10px;">Failed <span id="nlcount-status-failed" style="opacity: 0.7;">0</span></button>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn" onclick="startBeehiivDrip()" id="btnStartDrip" style="font-size: 11px; padding: 5px 12px; background: rgba(192,132,252,0.15); color: var(--purple); border-color: var(--purple); font-weight: 600;">Start Drip Feed</button>
+                        <button class="btn" onclick="stopBeehiivDrip()" id="btnStopDrip" style="font-size: 11px; padding: 5px 12px; display: none; background: rgba(248,113,113,0.15); color: var(--red); border-color: var(--red); font-weight: 600;">Stop Drip</button>
+                        <button class="btn" onclick="retryFailedBeehiiv()" style="font-size: 11px; padding: 5px 12px;">Retry Failed</button>
                     </div>
                 </div>
 
@@ -4328,7 +4309,7 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
 
             showToast(`Enriching LinkedIn URLs for ${targets.length} companies...`);
             let enriched = 0;
-            const proxyUrl = '/.netlify/functions/apollo-proxy';
+            const proxyUrl = '/api/apollo-proxy';
             const directUrl = 'https://api.apollo.io/v1/organizations/enrich';
             const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
@@ -7202,7 +7183,7 @@ ${JSON.stringify(batchData)}`
                     searchBody.person_titles = titleKeywords;
                 }
 
-                const resp = await fetch('/.netlify/functions/apollo-proxy', {
+                const resp = await fetch('/api/apollo-proxy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -7387,7 +7368,7 @@ ${JSON.stringify(batchData)}`
                     region: region,
                 };
 
-                const resp = await fetch('/.netlify/functions/fastmoss-proxy', {
+                const resp = await fetch('/api/fastmoss-proxy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -7420,7 +7401,7 @@ ${JSON.stringify(batchData)}`
                         const shopName = topShops[i].name || topShops[i].brand || '';
                         if (!shopName) continue;
                         try {
-                            const ukResp = await fetch('/.netlify/functions/fastmoss-proxy', {
+                            const ukResp = await fetch('/api/fastmoss-proxy', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
@@ -7638,7 +7619,7 @@ ${JSON.stringify(batchData)}`
 
             console.log('FastMoss search body:', JSON.stringify(searchBody));
 
-            const resp = await fetch('/.netlify/functions/fastmoss-proxy', {
+            const resp = await fetch('/api/fastmoss-proxy', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -7670,7 +7651,7 @@ ${JSON.stringify(batchData)}`
 
             console.log('FastMoss productList search:', JSON.stringify(searchBody));
 
-            const resp = await fetch('/.netlify/functions/fastmoss-proxy', {
+            const resp = await fetch('/api/fastmoss-proxy', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -8036,9 +8017,9 @@ ${JSON.stringify(batchData)}`
         function getSmartLeadProxyUrl() {
             // Use Netlify proxy in production, direct API in dev
             if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-                return '/.netlify/functions/smartlead-proxy';
+                return '/api/smartlead-proxy';
             }
-            return '/.netlify/functions/smartlead-proxy';
+            return '/api/smartlead-proxy';
         }
 
         async function smartleadRequest(action, campaignId, body) {
@@ -9100,7 +9081,7 @@ ${JSON.stringify(batchData)}`
                         q_organization_keyword_tags: search.q.split(' '),
                     };
 
-                    const resp = await fetch('/.netlify/functions/apollo-proxy', {
+                    const resp = await fetch('/api/apollo-proxy', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -9166,7 +9147,7 @@ ${JSON.stringify(batchData)}`
 
             for (const cat of categories) {
                 try {
-                    const resp = await fetch('/.netlify/functions/fastmoss-proxy', {
+                    const resp = await fetch('/api/fastmoss-proxy', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -9290,7 +9271,7 @@ ${JSON.stringify(batchData)}`
                 </div>`;
 
             try {
-                const resp = await fetch('/.netlify/functions/claude-proxy', {
+                const resp = await fetch('/api/claude-proxy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -10050,7 +10031,7 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
                 </div>`;
 
             try {
-                const resp = await fetch('/.netlify/functions/claude-proxy', {
+                const resp = await fetch('/api/claude-proxy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -10353,7 +10334,7 @@ K-Beauty brand list match: ${KBEAUTY_BRANDS.some(b => brand.name.toLowerCase().i
 CPG conglomerate match: ${Object.entries(FMCG_CONGLOMERATES).find(([p, info]) => info.aliases.some(a => brand.name.toLowerCase().includes(a)) || info.brands.some(b => brand.name.toLowerCase().includes(b)))?.[0] || 'NO — Indie brand'}
             `.trim();
 
-            const resp = await fetch('/.netlify/functions/claude-proxy', {
+            const resp = await fetch('/api/claude-proxy', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -10530,7 +10511,7 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
                         searchBody.q_organization_name = brand.name;
                     }
 
-                    const resp = await fetch('/.netlify/functions/apollo-proxy', {
+                    const resp = await fetch('/api/apollo-proxy', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -10910,7 +10891,7 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
 
         function setNlFilter(f, el) {
             nlFilter = f;
-            document.querySelectorAll('#newsletterSidebar .sidebar-item').forEach(i => i.classList.remove('active'));
+            document.querySelectorAll('#nlFilterPills .btn').forEach(i => i.classList.remove('active'));
             if (el) el.classList.add('active');
             renderNewsletter();
         }
@@ -10996,7 +10977,7 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
         async function beehiivApiCall(action, body) {
             const s = getBeehiivSettings();
             if (!s.api_key || !s.publication_id) throw new Error('Beehiiv API key and Publication ID required. Configure in Newsletter → Settings.');
-            const resp = await fetch('/.netlify/functions/beehiiv-proxy', {
+            const resp = await fetch('/api/beehiiv-proxy', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ api_key: s.api_key, publication_id: s.publication_id, action, body }),
