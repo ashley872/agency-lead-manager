@@ -1553,6 +1553,9 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                     </div>
                 </div>
 
+                <!-- Pending clean banner -->
+                <div id="nlPendingClean" style="display: none;"></div>
+
                 <!-- Drip progress bar -->
                 <div id="nlDripProgress" style="display: none; margin-bottom: 16px; padding: 12px 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -10926,7 +10929,20 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
         }
 
         function getNewsletterLeads() {
-            return leads.filter(l => l.stage === 'newsletter' && l.email);
+            return leads.filter(l => {
+                if (l.stage !== 'newsletter' || !l.email) return false;
+                // Only show cleaned leads — must have verified email
+                if (l.email_verified !== 'valid') return false;
+                // Exclude restricted categories (alcohol, tobacco, etc.)
+                const brand = brands.find(b => b.name && l.company_name && b.name.toLowerCase() === l.company_name.toLowerCase());
+                if (brand && !checkTTSEligibility(brand).eligible) return false;
+                const industry = (l.industry || '').toLowerCase();
+                const company = (l.company_name || '').toLowerCase();
+                for (const restricted of TTS_RESTRICTED_INDUSTRIES) {
+                    if (industry.includes(restricted) || company.includes(restricted)) return false;
+                }
+                return true;
+            });
         }
 
         function filterNlLeads(nlLeads) {
@@ -11394,6 +11410,31 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
         function renderNewsletter() {
             const nlLeads = getNewsletterLeads();
             const filtered = filterNlLeads(nlLeads);
+
+            // Show count of leads blocked from queue (unverified or restricted)
+            const allNewsletterStage = leads.filter(l => l.stage === 'newsletter' && l.email);
+            const unverifiedCount = allNewsletterStage.filter(l => l.email_verified !== 'valid').length;
+            const restrictedCount = allNewsletterStage.filter(l => {
+                if (l.email_verified !== 'valid') return false; // already counted above
+                const brand = brands.find(b => b.name && l.company_name && b.name.toLowerCase() === l.company_name.toLowerCase());
+                if (brand && !checkTTSEligibility(brand).eligible) return true;
+                const industry = (l.industry || '').toLowerCase();
+                const company = (l.company_name || '').toLowerCase();
+                for (const r of TTS_RESTRICTED_INDUSTRIES) { if (industry.includes(r) || company.includes(r)) return true; }
+                return false;
+            }).length;
+            const pendingEl = document.getElementById('nlPendingClean');
+            if (pendingEl) {
+                if (unverifiedCount > 0 || restrictedCount > 0) {
+                    const parts = [];
+                    if (unverifiedCount > 0) parts.push(`${unverifiedCount} need email verification`);
+                    if (restrictedCount > 0) parts.push(`${restrictedCount} in restricted categories`);
+                    pendingEl.innerHTML = `<div style="padding: 8px 12px; margin: 0 12px 8px; border-radius: 6px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); font-size: 12px; color: var(--yellow);">⚠ ${parts.join(', ')} — not shown in queue. <a href="#" onclick="event.preventDefault(); switchSection('leads'); setFilter('newsletter', document.querySelector('[data-filter=newsletter]'))" style="color: var(--cyan); text-decoration: underline;">View in Leads tab</a></div>`;
+                    pendingEl.style.display = '';
+                } else {
+                    pendingEl.style.display = 'none';
+                }
+            }
 
             // Update sidebar counts
             const counts = { all: nlLeads.length, 'seg-new-seller': 0, 'seg-active-seller': 0, 'seg-agency': 0, 'seg-enterprise': 0, 'status-queued': 0, 'status-pushed': 0, 'status-skipped': 0, 'status-failed': 0 };
