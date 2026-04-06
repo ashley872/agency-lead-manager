@@ -2679,17 +2679,18 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
             }
         }
 
-        // Pull leads from Supabase (replaces local data)
+        // Pull leads from Supabase — progressive load with UI updates
         async function cloudPullLeads() {
             if (!supabaseClient) return;
             syncStatus = 'syncing';
             updateSyncIndicator();
 
             try {
-                // Fetch all leads (paginated — Supabase default limit is 1000)
                 let allRows = [];
                 let page = 0;
                 const PAGE_SIZE = 1000;
+                const statusEl = document.getElementById('contentArea');
+
                 while (true) {
                     const { data, error } = await supabaseClient
                         .from('leads')
@@ -2699,16 +2700,33 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                     if (error) throw error;
                     if (!data || data.length === 0) break;
                     allRows = allRows.concat(data);
-                    if (allRows.length % 10000 === 0) {
-                        showToast(`Pulling... ${allRows.length.toLocaleString()} leads fetched so far...`);
+
+                    // Show progress every 5 pages
+                    if (page % 5 === 0 && statusEl) {
+                        statusEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon" style="animation: pulse 1.5s ease-in-out infinite;">&#9881;</div><div class="empty-state-title">Loading from cloud...</div><div class="empty-state-desc">${allRows.length.toLocaleString()} leads fetched so far</div></div>`;
+                        // Yield to browser so it can paint
+                        await new Promise(r => setTimeout(r, 0));
                     }
+
                     if (data.length < PAGE_SIZE) break;
                     page++;
                 }
 
+                // Assign leads in chunks to avoid freezing
                 leads = allRows.map(r => r.data);
-                saveLeads(); // Cache locally
+                allRows = null; // Free memory
+
+                // Yield before heavy computation
+                if (statusEl) {
+                    statusEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon" style="animation: pulse 1.5s ease-in-out infinite;">&#9881;</div><div class="empty-state-title">Processing ${leads.length.toLocaleString()} leads...</div><div class="empty-state-desc">Building brand index</div></div>`;
+                }
+                await new Promise(r => setTimeout(r, 0));
+
                 syncBrandsFromLeads();
+                saveLeads();
+
+                await new Promise(r => setTimeout(r, 0));
+                invalidateFilterCache();
                 render();
 
                 syncStatus = 'connected';
@@ -4476,8 +4494,8 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                     case 'name-asc': return (a.contact_first || '').localeCompare(b.contact_first || '');
                     case 'name-desc': return (b.contact_first || '').localeCompare(a.contact_first || '');
                     case 'company-asc': return (a.company_name || '').localeCompare(b.company_name || '');
-                    case 'date-desc': return new Date(b.date_added || 0) - new Date(a.date_added || 0);
-                    case 'date-asc': return new Date(a.date_added || 0) - new Date(b.date_added || 0);
+                    case 'date-desc': return (b.date_added || '') > (a.date_added || '') ? 1 : -1;
+                    case 'date-asc': return (a.date_added || '') > (b.date_added || '') ? 1 : -1;
                     default: return 0;
                 }
             });
@@ -6203,8 +6221,8 @@ ${JSON.stringify(batchData)}` }]
                     fmcg: data.fmcg,
                     country: data.country,
                     lead_count: data.leads.length,
-                    best_title: getBestTitle(data.leads),
-                    lead_emails: data.leads.map(l => l.email).filter(Boolean),
+                    best_title: data.leads.length <= 50 ? getBestTitle(data.leads) : (data.leads[0]?.title || ''),
+                    lead_emails: data.leads.length <= 50 ? data.leads.map(l => l.email).filter(Boolean) : data.leads.slice(0, 50).map(l => l.email).filter(Boolean),
                     // TTS data (preserved from existing)
                     tts_status: existing.tts_status || null, // 'on-tts', 'not-on-tts', null
                     tts_shop_name: existing.tts_shop_name || '',
