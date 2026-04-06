@@ -1551,10 +1551,12 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
 
                 <!-- Queue Sub-view -->
                 <div id="nlSubViewQueue">
-                    <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn" onclick="pullLeadsToNewsletter()" style="font-size: 12px; padding: 6px 14px; background: rgba(34,211,238,0.15); color: var(--cyan); border-color: var(--cyan); font-weight: 600;">Pull Leads</button>
                         <button class="btn" onclick="bulkQueueSelected()" style="font-size: 12px; padding: 6px 14px; background: rgba(192,132,252,0.15); color: var(--purple); border-color: var(--purple);">Push Selected to Beehiiv</button>
                         <button class="btn" onclick="bulkQueueAll()" style="font-size: 12px; padding: 6px 14px;">Queue All Unpushed</button>
                         <span style="font-size: 12px; color: var(--text-muted);" id="nlSelectionCount"></span>
+                        <span style="font-size: 11px; color: var(--text-muted); margin-left: auto;" id="nlPullableCount"></span>
                     </div>
                     <div id="nlQueueTable"></div>
                 </div>
@@ -11521,6 +11523,30 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
             showToast(`Newsletter emails verified! ${good} valid, ${bad} bounced (archived).`);
         }
 
+        function getPullableLeads() {
+            // Leads eligible to pull into newsletter: have email, in new/enrich stage, not generic email
+            return leads.filter(l => {
+                if (!l.email || !l.email.includes('@')) return false;
+                if (l.stage !== 'new' && l.stage !== 'enrich') return false;
+                if (l.email_type === 'generic') return false;
+                return true;
+            });
+        }
+
+        function pullLeadsToNewsletter() {
+            const pullable = getPullableLeads();
+            if (pullable.length === 0) {
+                showToast('No eligible leads to pull. Leads need an email and be in New or Enrich stage.');
+                return;
+            }
+            pullable.forEach(l => { l.stage = 'newsletter'; });
+            invalidateFilterCache();
+            saveLeads(); render();
+            showToast(`Pulled ${pullable.length} leads into Newsletter. Check the Pending tab to verify emails.`);
+            // Switch to pending tab so they can see what needs verification
+            switchNlSub('pending');
+        }
+
         function removeRestrictedFromNewsletter() {
             const pending = getPendingNewsletterLeads();
             const restricted = pending.filter(l => l.email_verified === 'valid');
@@ -11644,6 +11670,13 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
             const pendingTotal = unverifiedCount + restrictedCount;
             const pendingBadge = document.getElementById('nlPendingCount');
             if (pendingBadge) pendingBadge.textContent = pendingTotal > 0 ? pendingTotal : '';
+
+            // Update pullable count hint
+            const pullableEl = document.getElementById('nlPullableCount');
+            if (pullableEl) {
+                const pullable = getPullableLeads().length;
+                pullableEl.textContent = pullable > 0 ? `${pullable} leads available to pull` : '';
+            }
 
             // Update sidebar counts
             const counts = { all: nlLeads.length, 'seg-new-seller': 0, 'seg-active-seller': 0, 'seg-agency': 0, 'seg-enterprise': 0, 'status-queued': 0, 'status-pushed': 0, 'status-skipped': 0, 'status-failed': 0 };
