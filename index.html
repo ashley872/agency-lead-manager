@@ -1509,6 +1509,7 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                     </div>
                     <div style="display: flex; gap: 4px; background: var(--bg-tertiary); border-radius: 8px; padding: 3px;">
                         <button class="section-tab active" id="nlSubQueue" onclick="switchNlSub('queue')">Queue</button>
+                        <button class="section-tab" id="nlSubPending" onclick="switchNlSub('pending')">Pending <span id="nlPendingCount" style="opacity: 0.7; font-size: 11px;"></span></button>
                         <button class="section-tab" id="nlSubDashboard" onclick="switchNlSub('dashboard')">Dashboard</button>
                         <button class="section-tab" id="nlSubSettings" onclick="switchNlSub('settings')">Settings</button>
                     </div>
@@ -1556,6 +1557,18 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                         <span style="font-size: 12px; color: var(--text-muted);" id="nlSelectionCount"></span>
                     </div>
                     <div id="nlQueueTable"></div>
+                </div>
+
+                <!-- Pending Sub-view (unverified newsletter leads) -->
+                <div id="nlSubViewPending" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                        <p style="margin: 0; font-size: 13px; color: var(--text-muted);">Leads moved to Newsletter stage that still need email verification before they appear in the Queue.</p>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn" onclick="verifyNewsletterEmails()" style="font-size: 11px; padding: 5px 12px; background: rgba(34,211,238,0.15); color: var(--cyan); border-color: var(--cyan); font-weight: 600;">Verify Emails</button>
+                            <button class="btn" onclick="removeRestrictedFromNewsletter()" style="font-size: 11px; padding: 5px 12px; background: rgba(251,191,36,0.12); color: var(--yellow); border-color: var(--yellow);">Remove Restricted</button>
+                        </div>
+                    </div>
+                    <div id="nlPendingTable"></div>
                 </div>
 
                 <!-- Dashboard Sub-view -->
@@ -10938,14 +10951,17 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
         function switchNlSub(view) {
             nlSubView = view;
             document.getElementById('nlSubQueue').classList.toggle('active', view === 'queue');
+            document.getElementById('nlSubPending').classList.toggle('active', view === 'pending');
             document.getElementById('nlSubDashboard').classList.toggle('active', view === 'dashboard');
             document.getElementById('nlSubSettings').classList.toggle('active', view === 'settings');
             document.getElementById('nlSubViewQueue').style.display = view === 'queue' ? '' : 'none';
+            document.getElementById('nlSubViewPending').style.display = view === 'pending' ? '' : 'none';
             document.getElementById('nlSubViewDashboard').style.display = view === 'dashboard' ? '' : 'none';
             document.getElementById('nlSubViewSettings').style.display = view === 'settings' ? '' : 'none';
             if (view === 'settings') loadBeehiivSettingsUI();
             if (view === 'dashboard') renderNlDashboard();
             if (view === 'queue') renderNewsletter();
+            if (view === 'pending') renderNlPending();
         }
 
         function getNewsletterLeads() {
@@ -11351,6 +11367,174 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
             renderNewsletter();
         }
 
+        function getPendingNewsletterLeads() {
+            return leads.filter(l => {
+                if (l.stage !== 'newsletter' || !l.email) return false;
+                if (l.email_verified === 'valid') {
+                    // Check restricted categories — if restricted, it's "pending" too
+                    const brand = brands.find(b => b.name && l.company_name && b.name.toLowerCase() === l.company_name.toLowerCase());
+                    if (brand && !checkTTSEligibility(brand).eligible) return true;
+                    const industry = (l.industry || '').toLowerCase();
+                    const company = (l.company_name || '').toLowerCase();
+                    for (const restricted of TTS_RESTRICTED_INDUSTRIES) {
+                        if (industry.includes(restricted) || company.includes(restricted)) return true;
+                    }
+                    return false; // valid + not restricted = in queue, not pending
+                }
+                return true; // unverified = pending
+            });
+        }
+
+        function renderNlPending() {
+            const pending = getPendingNewsletterLeads();
+            const unverified = pending.filter(l => l.email_verified !== 'valid');
+            const restricted = pending.filter(l => l.email_verified === 'valid');
+
+            // Update pending count badge
+            const badge = document.getElementById('nlPendingCount');
+            if (badge) badge.textContent = pending.length > 0 ? pending.length : '';
+
+            let html = `<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+                <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: var(--yellow);">${pending.length}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">Total Pending</div>
+                </div>
+                <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: var(--cyan);">${unverified.length}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">Need Verification</div>
+                </div>
+                <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: var(--red);">${restricted.length}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">Restricted Category</div>
+                </div>
+            </div>`;
+
+            if (pending.length === 0) {
+                html += `<div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    <div style="font-size: 32px; margin-bottom: 8px;">✓</div>
+                    <div style="font-size: 14px;">All newsletter leads are clean and in the Queue.</div>
+                </div>`;
+            } else {
+                html += `<table class="leads-table" style="width: 100%; font-size: 13px;">
+                    <thead><tr>
+                        <th>Company</th>
+                        <th>Contact</th>
+                        <th>Email</th>
+                        <th>Verification</th>
+                        <th>Issue</th>
+                        <th>Action</th>
+                    </tr></thead><tbody>`;
+
+                pending.forEach(l => {
+                    const verifyStatus = l.email_verified || 'not checked';
+                    const isRestricted = l.email_verified === 'valid';
+                    const issue = isRestricted ? 'Restricted category' : (verifyStatus === 'not checked' ? 'Not verified' : verifyStatus);
+                    const issueColor = isRestricted ? 'var(--red)' : (verifyStatus === 'bad' ? 'var(--red)' : 'var(--yellow)');
+                    const action = isRestricted
+                        ? `<button class="btn" onclick="moveLeadStage('${l.id}', 'archive'); renderNlPending(); renderNewsletter();" style="font-size: 10px; padding: 3px 8px; color: var(--red); border-color: var(--red);">Archive</button>`
+                        : verifyStatus === 'bad'
+                        ? `<button class="btn" onclick="moveLeadStage('${l.id}', 'archive'); renderNlPending(); renderNewsletter();" style="font-size: 10px; padding: 3px 8px; color: var(--red); border-color: var(--red);">Archive</button>`
+                        : `<span style="font-size: 10px; color: var(--text-muted);">Run verify</span>`;
+                    html += `<tr>
+                        <td style="padding: 6px 8px;">${l.company_name || '—'}</td>
+                        <td style="padding: 6px 8px;">${l.first_name || ''} ${l.last_name || ''}</td>
+                        <td style="padding: 6px 8px; font-size: 12px;">${l.email}</td>
+                        <td style="padding: 6px 8px;"><span style="font-size: 11px; color: ${issueColor};">${verifyStatus}</span></td>
+                        <td style="padding: 6px 8px; font-size: 11px; color: ${issueColor};">${issue}</td>
+                        <td style="padding: 6px 8px;">${action}</td>
+                    </tr>`;
+                });
+
+                html += `</tbody></table>`;
+            }
+
+            document.getElementById('nlPendingTable').innerHTML = html;
+        }
+
+        async function verifyNewsletterEmails() {
+            const apiKey = localStorage.getItem('agencyclay_mv_key');
+            if (!apiKey) { showToast('Add your MillionVerifier API key in Settings first.'); openSettings(); return; }
+
+            const toVerify = leads.filter(l => l.stage === 'newsletter' && l.email && l.email.includes('@') && !l.email_verified);
+            if (toVerify.length === 0) { showToast('All newsletter emails already verified!'); return; }
+
+            verifyAbort = false;
+            const taskId = bgTaskCreate('Verify Newsletter Emails');
+            bgTaskUpdate(taskId, { status: `0 / ${toVerify.length}`, pct: 0 });
+
+            let good = 0, bad = 0, risky = 0, errors = 0;
+            let consecutiveErrors = 0;
+
+            for (let i = 0; i < toVerify.length; i++) {
+                if (verifyAbort) {
+                    bgTaskUpdate(taskId, { status: `Cancelled — ${good} valid, ${bad} bounce (${i}/${toVerify.length})`, pct: Math.round((i / toVerify.length) * 100), done: true });
+                    saveLeads(); render();
+                    return;
+                }
+
+                const lead = toVerify[i];
+                const pct = Math.round(((i + 1) / toVerify.length) * 100);
+                bgTaskUpdate(taskId, { status: `${i+1}/${toVerify.length} — ${lead.email}`, pct });
+
+                try {
+                    const resp = await fetch(`https://api.millionverifier.com/api/v3/?api=${encodeURIComponent(apiKey)}&email=${encodeURIComponent(lead.email)}&timeout=10`);
+                    const data = await resp.json();
+
+                    if (data.error) {
+                        lead.email_verified = 'risky'; lead.email_verify_detail = data.error; errors++;
+                        consecutiveErrors++;
+                    } else {
+                        consecutiveErrors = 0;
+                        const quality = data.quality || 'unknown';
+                        lead.email_verified = quality;
+                        lead.email_verify_result = data.result;
+                        lead.email_verify_detail = data.subresult || '';
+                        lead.email_is_free = data.free || false;
+                        lead.email_is_role = data.role || false;
+                        if (data.didyoumean) lead.email_didyoumean = data.didyoumean;
+
+                        if (quality === 'good') { good++; bgTaskUpdate(taskId, { logLine: `<span class="good">${lead.email} — valid</span>` }); }
+                        else if (quality === 'bad') {
+                            bad++;
+                            lead.stage = 'archive'; lead.score = Math.max(0, (lead.score || 0) - 30); lead.tier = getTier(lead.score);
+                            bgTaskUpdate(taskId, { logLine: `<span class="bad">${lead.email} — bounce → archived</span>` });
+                        } else { risky++; bgTaskUpdate(taskId, { logLine: `<span class="risky">${lead.email} — ${data.result}</span>` }); }
+                        if (data.role) lead.email_type = 'generic';
+                    }
+                } catch (err) {
+                    errors++; consecutiveErrors++;
+                    lead.email_verified = 'risky'; lead.email_verify_detail = 'Network error';
+                }
+
+                if (consecutiveErrors >= 10) {
+                    bgTaskUpdate(taskId, { status: `Stopped — ${consecutiveErrors} consecutive errors. ${good} valid, ${bad} bounce`, pct, done: true });
+                    saveLeads(); renderNlPending(); renderNewsletter();
+                    return;
+                }
+
+                if ((i + 1) % 10 === 0) saveLeads();
+                if (i < toVerify.length - 1) await new Promise(r => setTimeout(r, 50));
+            }
+
+            saveLeads(); renderNlPending(); renderNewsletter();
+            bgTaskUpdate(taskId, { status: `Done — ${good} valid, ${bad} bounce, ${risky} risky`, pct: 100, done: true });
+            showToast(`Newsletter emails verified! ${good} valid, ${bad} bounced (archived).`);
+        }
+
+        function removeRestrictedFromNewsletter() {
+            const pending = getPendingNewsletterLeads();
+            const restricted = pending.filter(l => l.email_verified === 'valid');
+            if (restricted.length === 0) { showToast('No restricted leads to remove.'); return; }
+            restricted.forEach(l => { l.stage = 'archive'; });
+            saveLeads(); renderNlPending(); renderNewsletter();
+            showToast(`${restricted.length} restricted leads archived.`);
+        }
+
+        function moveLeadStage(leadId, stage) {
+            const lead = leads.find(l => l.id === leadId);
+            if (lead) { lead.stage = stage; saveLeads(); }
+        }
+
         function renderNlDashboard() {
             const nlLeads = getNewsletterLeads();
             const pushed = nlLeads.filter(l => l.beehiiv_status === 'pushed').length;
@@ -11449,12 +11633,17 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
                     const parts = [];
                     if (unverifiedCount > 0) parts.push(`${unverifiedCount} need email verification`);
                     if (restrictedCount > 0) parts.push(`${restrictedCount} in restricted categories`);
-                    pendingEl.innerHTML = `<div style="padding: 8px 12px; margin: 0 12px 8px; border-radius: 6px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); font-size: 12px; color: var(--yellow);">⚠ ${parts.join(', ')} — not shown in queue. <a href="#" onclick="event.preventDefault(); switchSection('leads'); setFilter('newsletter', document.querySelector('[data-filter=newsletter]'))" style="color: var(--cyan); text-decoration: underline;">View in Leads tab</a></div>`;
+                    pendingEl.innerHTML = `<div style="padding: 8px 12px; margin: 0 12px 8px; border-radius: 6px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); font-size: 12px; color: var(--yellow);">⚠ ${parts.join(', ')} — not shown in queue. <a href="#" onclick="event.preventDefault(); switchNlSub('pending')" style="color: var(--cyan); text-decoration: underline;">View in Pending tab</a></div>`;
                     pendingEl.style.display = '';
                 } else {
                     pendingEl.style.display = 'none';
                 }
             }
+
+            // Update pending tab badge count
+            const pendingTotal = unverifiedCount + restrictedCount;
+            const pendingBadge = document.getElementById('nlPendingCount');
+            if (pendingBadge) pendingBadge.textContent = pendingTotal > 0 ? pendingTotal : '';
 
             // Update sidebar counts
             const counts = { all: nlLeads.length, 'seg-new-seller': 0, 'seg-active-seller': 0, 'seg-agency': 0, 'seg-enterprise': 0, 'status-queued': 0, 'status-pushed': 0, 'status-skipped': 0, 'status-failed': 0 };
