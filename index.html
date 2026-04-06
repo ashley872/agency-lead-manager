@@ -2728,21 +2728,30 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                 }
 
                 // Assign leads in chunks to avoid freezing
-                leads = allRows.map(r => r.data);
+                const totalRows = allRows.length;
+                leads = new Array(totalRows);
+                const CHUNK = 5000;
+                for (let i = 0; i < totalRows; i += CHUNK) {
+                    const end = Math.min(i + CHUNK, totalRows);
+                    for (let j = i; j < end; j++) leads[j] = allRows[j].data;
+                    if (statusEl && i > 0) {
+                        statusEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon" style="animation: pulse 1.5s ease-in-out infinite;">&#9881;</div><div class="empty-state-title">Processing leads...</div><div class="empty-state-desc">${(i + CHUNK).toLocaleString()} / ${totalRows.toLocaleString()} loaded</div></div>`;
+                    }
+                    await new Promise(r => setTimeout(r, 0));
+                }
                 allRows = null; // Free memory
 
-                // Yield before heavy computation
                 if (statusEl) {
-                    statusEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon" style="animation: pulse 1.5s ease-in-out infinite;">&#9881;</div><div class="empty-state-title">Processing ${leads.length.toLocaleString()} leads...</div><div class="empty-state-desc">Building brand index</div></div>`;
+                    statusEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon" style="animation: pulse 1.5s ease-in-out infinite;">&#9881;</div><div class="empty-state-title">Building brand index...</div><div class="empty-state-desc">${leads.length.toLocaleString()} leads loaded</div></div>`;
                 }
                 await new Promise(r => setTimeout(r, 0));
 
-                syncBrandsFromLeads();
+                await syncBrandsFromLeadsAsync();
                 saveLeads();
 
                 await new Promise(r => setTimeout(r, 0));
                 invalidateFilterCache();
-                render();
+                render(true);
 
                 syncStatus = 'connected';
                 updateSyncIndicator();
@@ -4479,7 +4488,7 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
         let _filteredCache = null;
         let _filteredCacheKey = '';
 
-        function invalidateFilterCache() { _filteredCache = null; _filteredCacheKey = ''; _countsCache = null; _countsCacheLen = -1; }
+        function invalidateFilterCache() { _filteredCache = null; _filteredCacheKey = ''; _countsCache = null; _countsCacheLen = -1; _pipelineCache = null; _pipelineCacheLen = -1; }
 
         function getFilteredLeads() {
             const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
@@ -4522,23 +4531,41 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
 
         // ========== RENDERING ==========
         let _renderRAF = null;
-        function render() {
-            invalidateFilterCache();
+        function render(skipCacheInvalidate) {
+            if (!skipCacheInvalidate) invalidateFilterCache();
             // Coalesce rapid render calls into a single paint frame
             if (_renderRAF) return;
-            _renderRAF = requestAnimationFrame(() => {
-                _renderRAF = null;
-                renderSidebarCounts(); // computes counts used by renderStats
-                renderStats();
-                renderLeads();
-            });
+            if (leads.length > 10000) {
+                // Large dataset: split rendering across multiple frames
+                _renderRAF = requestAnimationFrame(() => {
+                    _renderRAF = null;
+                    renderLeads(); // show data first (paginated = fast)
+                    // Defer expensive counts to next frame
+                    requestAnimationFrame(() => {
+                        renderSidebarCounts();
+                        renderStats();
+                    });
+                });
+            } else {
+                _renderRAF = requestAnimationFrame(() => {
+                    _renderRAF = null;
+                    renderSidebarCounts();
+                    renderStats();
+                    renderLeads();
+                });
+            }
         }
         // Force immediate render (use sparingly — e.g. initial load)
         function renderNow() {
             if (_renderRAF) { cancelAnimationFrame(_renderRAF); _renderRAF = null; }
-            renderSidebarCounts();
-            renderStats();
             renderLeads();
+            // Defer counts for large datasets
+            if (leads.length > 10000) {
+                requestAnimationFrame(() => { renderSidebarCounts(); renderStats(); });
+            } else {
+                renderSidebarCounts();
+                renderStats();
+            }
         }
 
         // Single-pass count aggregation — cached to avoid re-scanning 66K leads
@@ -4664,27 +4691,30 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
             return result;
         }
 
+        // Cache pipeline values alongside counts
+        let _pipelineCache = null;
+        let _pipelineCacheLen = -1;
+
+        function computePipeline() {
+            if (_pipelineCache && _pipelineCacheLen === leads.length) return _pipelineCache;
+            const activeStages = new Set(['outreach', 'replied', 'meeting', 'proposal']);
+            let pipelineValue = 0, pipelineDeals = 0, closedValue = 0, closedDeals = 0;
+            for (let i = 0; i < leads.length; i++) {
+                const l = leads[i];
+                if (activeStages.has(l.stage) && l.deal_value > 0) { pipelineValue += l.deal_value; pipelineDeals++; }
+                else if (l.stage === 'closed' && l.deal_value > 0) { closedValue += l.deal_value; closedDeals++; }
+            }
+            _pipelineCache = { pipelineValue, pipelineDeals, closedValue, closedDeals };
+            _pipelineCacheLen = leads.length;
+            return _pipelineCache;
+        }
+
         function renderStats() {
             const total = leads.length;
             const c = _lastCounts || computeCounts().counts;
 
-            // Pipeline value calculation — single pass instead of multiple .filter() calls
-            const activeStages = new Set(['outreach', 'replied', 'meeting', 'proposal']);
-            let pipelineValue = 0;
-            let pipelineDeals = 0;
-            let closedValue = 0;
-            let closedDeals = 0;
-            for (let i = 0; i < leads.length; i++) {
-                const l = leads[i];
-                if (activeStages.has(l.stage) && l.deal_value > 0) {
-                    pipelineValue += l.deal_value;
-                    pipelineDeals++;
-                }
-                if (l.stage === 'closed') {
-                    closedDeals++;
-                    if (l.deal_value > 0) closedValue += l.deal_value;
-                }
-            }
+            // Pipeline value calculation — cached
+            const { pipelineValue, pipelineDeals, closedValue, closedDeals } = computePipeline();
             const formatMoney = (v) => v >= 1000 ? '$' + (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'K' : '$' + v;
 
             document.getElementById('statsRow').innerHTML = `
@@ -6196,29 +6226,51 @@ ${JSON.stringify(batchData)}` }]
         }
 
         // Build brands from leads — group by company_name
-        function syncBrandsFromLeads() {
+        // Async version — yields to browser every 10K leads to prevent freezing
+        async function syncBrandsFromLeadsAsync() {
             const brandMap = {};
-            leads.forEach(lead => {
+            for (let i = 0; i < leads.length; i++) {
+                const lead = leads[i];
                 const name = (lead.company_name || '').trim();
-                if (!name) return;
+                if (!name) continue;
                 const key = name.toLowerCase();
                 if (!brandMap[key]) {
-                    brandMap[key] = {
-                        name: name,
-                        leads: [],
-                        website: lead.website || '',
-                        industry: lead.industry || '',
-                        fmcg: lead.fmcg,
-                        country: lead.country || '',
-                    };
+                    brandMap[key] = { name, leadCount: 0, sampleLeads: [], website: lead.website || '', industry: lead.industry || '', fmcg: lead.fmcg, country: lead.country || '' };
                 }
-                brandMap[key].leads.push(lead);
-                // Prefer non-empty values
+                brandMap[key].leadCount++;
+                if (brandMap[key].sampleLeads.length < 50) brandMap[key].sampleLeads.push(lead);
                 if (!brandMap[key].website && lead.website) brandMap[key].website = lead.website;
                 if (!brandMap[key].industry && lead.industry) brandMap[key].industry = lead.industry;
                 if (brandMap[key].fmcg == null && lead.fmcg != null) brandMap[key].fmcg = lead.fmcg;
                 if (!brandMap[key].country && lead.country) brandMap[key].country = lead.country;
-            });
+                if (i % 10000 === 0 && i > 0) await new Promise(r => setTimeout(r, 0));
+            }
+            _finalizeBrandMap(brandMap, true); // skip scoring on initial load — defer it
+            // Defer brand scoring to avoid blocking
+            setTimeout(() => { renderBrandScores(); saveBrands(); }, 500);
+        }
+
+        function syncBrandsFromLeads() {
+            const brandMap = {};
+            for (let i = 0; i < leads.length; i++) {
+                const lead = leads[i];
+                const name = (lead.company_name || '').trim();
+                if (!name) continue;
+                const key = name.toLowerCase();
+                if (!brandMap[key]) {
+                    brandMap[key] = { name, leadCount: 0, sampleLeads: [], website: lead.website || '', industry: lead.industry || '', fmcg: lead.fmcg, country: lead.country || '' };
+                }
+                brandMap[key].leadCount++;
+                if (brandMap[key].sampleLeads.length < 50) brandMap[key].sampleLeads.push(lead);
+                if (!brandMap[key].website && lead.website) brandMap[key].website = lead.website;
+                if (!brandMap[key].industry && lead.industry) brandMap[key].industry = lead.industry;
+                if (brandMap[key].fmcg == null && lead.fmcg != null) brandMap[key].fmcg = lead.fmcg;
+                if (!brandMap[key].country && lead.country) brandMap[key].country = lead.country;
+            }
+            _finalizeBrandMap(brandMap);
+        }
+
+        function _finalizeBrandMap(brandMap, skipScoring) {
 
             // Merge with existing brand data (preserve TTS data)
             // Use in-memory brands first, then fall back to persisted metadata cache
@@ -6235,9 +6287,9 @@ ${JSON.stringify(batchData)}` }]
                     industry: data.industry,
                     fmcg: data.fmcg,
                     country: data.country,
-                    lead_count: data.leads.length,
-                    best_title: data.leads.length <= 50 ? getBestTitle(data.leads) : (data.leads[0]?.title || ''),
-                    lead_emails: data.leads.length <= 50 ? data.leads.map(l => l.email).filter(Boolean) : data.leads.slice(0, 50).map(l => l.email).filter(Boolean),
+                    lead_count: data.leadCount,
+                    best_title: getBestTitle(data.sampleLeads),
+                    lead_emails: data.sampleLeads.map(l => l.email).filter(Boolean),
                     // TTS data (preserved from existing)
                     tts_status: existing.tts_status || null, // 'on-tts', 'not-on-tts', null
                     tts_shop_name: existing.tts_shop_name || '',
@@ -6257,7 +6309,7 @@ ${JSON.stringify(batchData)}` }]
                 });
             }
             brands = newBrands;
-            renderBrandScores();
+            if (!skipScoring) renderBrandScores();
             saveBrands();
         }
 
