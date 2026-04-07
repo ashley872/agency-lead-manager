@@ -11139,6 +11139,7 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
         async function pushLeadToBeehiiv(lead) {
             const s = getBeehiivSettings();
             const tags = generateBeehiivTags(lead);
+            tags.push('in-drip');
 
             // Check for existing subscription first
             try {

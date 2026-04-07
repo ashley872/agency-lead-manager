@@ -222,6 +222,7 @@ module.exports = async function handler(req, res) {
         } else {
           // Create subscription
           const tags = generateTags(lead, bh);
+          tags.push("in-drip");
           const payload = {
             email: lead.email,
             reactivate_existing: true,
