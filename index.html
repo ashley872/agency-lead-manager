@@ -2873,6 +2873,7 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                     smartlead_key: localStorage.getItem('agencyclay_smartlead_key') || '',
                     smartlead_campaign: localStorage.getItem('agencyclay_smartlead_campaign') || '',
                     min_revenue: localStorage.getItem('agencyclay_min_revenue') || '0',
+                    beehiiv: getBeehiivSettings(),
                 };
                 const { error } = await supabaseClient
                     .from('team_settings')
@@ -2903,6 +2904,7 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                 if (s.smartlead_key) localStorage.setItem('agencyclay_smartlead_key', s.smartlead_key);
                 if (s.smartlead_campaign) localStorage.setItem('agencyclay_smartlead_campaign', s.smartlead_campaign);
                 if (s.min_revenue) localStorage.setItem('agencyclay_min_revenue', s.min_revenue);
+                if (s.beehiiv) localStorage.setItem(BEEHIIV_SETTINGS_KEY, JSON.stringify(s.beehiiv));
                 return true;
             } catch (e) {
                 console.error('Cloud pull settings failed:', e);
