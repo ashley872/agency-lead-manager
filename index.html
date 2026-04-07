@@ -1253,6 +1253,9 @@
             <div class="sidebar-item" data-rfilter="forecast" onclick="setReportFilter('forecast', this)">
                 Deal Forecast
             </div>
+            <div class="sidebar-item" data-rfilter="reply-intel" onclick="setReportFilter('reply-intel', this)">
+                Reply Intel
+            </div>
         </nav>
         <main class="main">
             <div id="reportingContentArea"></div>
@@ -3020,6 +3023,7 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
             const ok2 = await cloudPullBrands();
             const ok3 = await cloudPullSettings();
             const ok4 = await cloudPullDiscovery();
+            await cloudPullReplyIntel();
 
             if (ok1) {
                 syncStatus = 'connected';
@@ -8367,6 +8371,10 @@ ${JSON.stringify(batchData)}`
                     slLeads.forEach(sl => {
                         const lead = leads.find(l => l.email === sl.email);
                         if (!lead) return;
+                        // Capture SmartLead lead ID for message history
+                        if (sl.id && !lead.smartlead_id) {
+                            lead.smartlead_id = sl.id;
+                        }
                         const status = sl.lead_status || sl.status || sl.category;
                         if (status && status !== lead.smartlead_status) {
                             lead.smartlead_status = status;
@@ -8702,6 +8710,7 @@ ${JSON.stringify(batchData)}`
             else if (reportFilter === 'monitoring') renderMonitoring(area);
             else if (reportFilter === 'funnel') renderConversionFunnel(area);
             else if (reportFilter === 'forecast') renderDealForecast(area);
+            else if (reportFilter === 'reply-intel') renderReplyIntel(area);
         }
 
         function renderDashboard(area) {
@@ -9144,6 +9153,407 @@ ${JSON.stringify(batchData)}`
                     </tbody></table>
                 ` : '<p style="margin-top: 20px; color: var(--text-muted);">Set close dates on deals to see monthly forecast.</p>'}
             `;
+        }
+
+        // ========== REPLY INTELLIGENCE ==========
+
+        const REPLY_INTEL_KEY = 'agencyclay_reply_intel';
+        let replyIntel = [];
+        let replyIntelFilter = 'pending';
+
+        function loadReplyIntel() {
+            try { replyIntel = JSON.parse(localStorage.getItem(REPLY_INTEL_KEY) || '[]'); } catch(e) { replyIntel = []; }
+        }
+        function saveReplyIntel() {
+            localStorage.setItem(REPLY_INTEL_KEY, JSON.stringify(replyIntel));
+        }
+
+        async function cloudPushReplyIntel() {
+            if (!supabaseClient || replyIntel.length === 0) return;
+            try {
+                await supabaseClient.from('team_settings').upsert(
+                    { id: 'reply_intel', data: replyIntel, updated_at: new Date().toISOString() },
+                    { onConflict: 'id' }
+                );
+            } catch (e) { console.warn('Reply intel cloud push failed:', e); }
+        }
+
+        async function cloudPullReplyIntel() {
+            if (!supabaseClient) return;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('team_settings').select('data').eq('id', 'reply_intel').single();
+                if (!error && data?.data) {
+                    replyIntel = data.data;
+                    saveReplyIntel();
+                }
+            } catch (e) { console.warn('Reply intel cloud pull failed:', e); }
+        }
+
+        async function scanRepliesForIntel() {
+            const apiKey = localStorage.getItem('agencyclay_claude_key');
+            if (!apiKey) { alert('Set Claude API key in Settings first.'); return; }
+            const slKey = localStorage.getItem('agencyclay_smartlead_key');
+            const campId = localStorage.getItem('agencyclay_smartlead_campaign');
+            if (!slKey || !campId) { alert('Set SmartLead API key and campaign in Settings first.'); return; }
+
+            // Find replied/OOO leads that haven't been scanned
+            const toScan = leads.filter(l =>
+                l.smartlead_id &&
+                (l.smartlead_status === 'REPLIED' || l.smartlead_status === 'OUT_OF_OFFICE' ||
+                 l.smartlead_replied) &&
+                !l.reply_intel_scanned
+            );
+
+            if (toScan.length === 0) {
+                alert('No new replies to scan. Sync SmartLead status first.');
+                return;
+            }
+
+            const taskId = bgTaskCreate('Reply Intelligence Scan');
+            bgTaskUpdate(taskId, { status: `Scanning ${toScan.length} replies`, pct: 0 });
+
+            let scanned = 0, extracted = 0, errors = 0;
+
+            // Fetch message history for each lead
+            const replyTexts = [];
+            for (let i = 0; i < toScan.length; i++) {
+                const lead = toScan[i];
+                try {
+                    bgTaskUpdate(taskId, { status: `Fetching messages ${i + 1}/${toScan.length}`, pct: Math.round((i / toScan.length) * 40) });
+                    const msgs = await smartleadRequest('get_lead_messages', campId, { lead_id: lead.smartlead_id });
+                    // Extract reply messages (from lead, not from us)
+                    const history = Array.isArray(msgs) ? msgs : (msgs.data || msgs.history || []);
+                    const replies = history.filter(m =>
+                        (m.type === 'REPLY' || m.type === 'reply' || m.direction === 'incoming' || m.from_email === lead.email)
+                    );
+                    const replyText = replies.map(m => m.body || m.text || m.content || m.message || '').join('\n---\n');
+                    if (replyText.trim()) {
+                        replyTexts.push({
+                            lead,
+                            reply: replyText.slice(0, 2000), // Cap length for AI
+                            email: lead.email,
+                            name: `${lead.contact_first || ''} ${lead.contact_last || ''}`.trim(),
+                            company: lead.company_name || ''
+                        });
+                    }
+                    lead.reply_intel_scanned = true;
+                    scanned++;
+                } catch (err) {
+                    bgTaskUpdate(taskId, { logLine: `<span class="bad">Failed to fetch messages for ${lead.email}: ${err.message}</span>` });
+                    lead.reply_intel_scanned = true; // Don't retry failures
+                    errors++;
+                }
+                // Rate limit
+                await new Promise(r => setTimeout(r, 100));
+            }
+
+            bgTaskUpdate(taskId, { logLine: `Fetched ${replyTexts.length} reply texts from ${scanned} leads (${errors} errors)`, pct: 45 });
+
+            if (replyTexts.length === 0) {
+                bgTaskUpdate(taskId, { status: 'Done — no reply text found', done: true, pct: 100 });
+                saveLeads();
+                return;
+            }
+
+            // Batch through Claude AI
+            const batchSize = 10;
+            const batches = [];
+            for (let i = 0; i < replyTexts.length; i += batchSize) batches.push(replyTexts.slice(i, i + batchSize));
+
+            for (let bi = 0; bi < batches.length; bi++) {
+                const batch = batches[bi];
+                bgTaskUpdate(taskId, { status: `AI analyzing batch ${bi + 1}/${batches.length}`, pct: 45 + Math.round(((bi + 1) / batches.length) * 50) });
+                try {
+                    const prompt = `Analyze these email replies from sales outreach campaigns. For each reply, determine:
+- reply_type: "ooo" (out of office), "left_company" (person left), "referral" (redirecting to someone else), "rebrand" (company renamed/merged), "redirect" (use different email), or "other"
+- new_email: any new email address mentioned (null if none)
+- new_name: any new person's name mentioned (null if none)
+- new_title: their job title if mentioned (null if none)
+- new_company: company name if different/rebranded (null if none)
+- context: 1-line summary of the key info
+
+Return a JSON array with one object per reply. ONLY include entries where there IS actionable intel (a new email, new name, or new company). If a reply has no actionable intel (e.g. just "thanks" or a generic OOO with no referral), omit it.
+
+Replies to analyze:
+${JSON.stringify(batch.map((r, idx) => ({ idx, from: r.email, name: r.name, company: r.company, reply: r.reply })))}`;
+
+                    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+                        body: JSON.stringify({
+                            model: 'claude-haiku-4-5-20251001', max_tokens: 4096,
+                            messages: [{ role: 'user', content: prompt }]
+                        })
+                    });
+
+                    if (resp.status === 429) {
+                        bgTaskUpdate(taskId, { logLine: `<span class="risky">Rate limited, retrying in 5s...</span>` });
+                        await new Promise(r => setTimeout(r, 5000));
+                        bi--; // Retry this batch
+                        continue;
+                    }
+
+                    const data = await resp.json();
+                    if (data.error) {
+                        bgTaskUpdate(taskId, { logLine: `<span class="bad">AI error: ${data.error.message}</span>` });
+                        continue;
+                    }
+
+                    const text = data.content?.[0]?.text || '';
+                    const jsonMatch = text.match(/\[[\s\S]*\]/);
+                    if (jsonMatch) {
+                        const results = JSON.parse(jsonMatch[0]);
+                        results.forEach(r => {
+                            const src = batch[r.idx];
+                            if (!src) return;
+                            const intel = {
+                                id: 'ri_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                                source_email: src.email,
+                                source_name: src.name,
+                                source_company: src.company,
+                                campaign_id: campId,
+                                smartlead_lead_id: src.lead.smartlead_id,
+                                reply_text: src.reply,
+                                reply_type: r.reply_type || 'other',
+                                extracted: {
+                                    new_email: r.new_email || null,
+                                    new_name: r.new_name || null,
+                                    new_title: r.new_title || null,
+                                    new_company: r.new_company || null,
+                                    context: r.context || ''
+                                },
+                                status: 'pending',
+                                scanned_at: new Date().toISOString(),
+                                actioned_at: null
+                            };
+                            // Avoid duplicates
+                            if (!replyIntel.find(ri => ri.source_email === intel.source_email && ri.extracted.new_email === intel.extracted.new_email)) {
+                                replyIntel.push(intel);
+                                extracted++;
+                                bgTaskUpdate(taskId, { logLine: `<span class="change">${src.email} → ${r.reply_type}: ${r.new_email || r.new_name || r.new_company || r.context}</span>` });
+                            }
+                        });
+                    }
+                } catch (err) {
+                    bgTaskUpdate(taskId, { logLine: `<span class="bad">Batch ${bi + 1} error: ${err.message}</span>` });
+                }
+            }
+
+            saveLeads();
+            saveReplyIntel();
+            cloudPushReplyIntel();
+            bgTaskUpdate(taskId, { status: `Done: ${extracted} intel items from ${scanned} replies`, pct: 100, done: true });
+            if (reportFilter === 'reply-intel') renderReporting();
+        }
+
+        function approveReplyIntel(intelId) {
+            const intel = replyIntel.find(r => r.id === intelId);
+            if (!intel || intel.status !== 'pending') return;
+
+            const ext = intel.extracted;
+            if (!ext.new_email && !ext.new_name) {
+                alert('No email or name to create a lead from.');
+                return;
+            }
+
+            // Parse name
+            let firstName = '', lastName = '';
+            if (ext.new_name) {
+                const parts = ext.new_name.trim().split(/\s+/);
+                firstName = parts[0] || '';
+                lastName = parts.slice(1).join(' ') || '';
+            }
+
+            const newLead = {
+                id: 'lead_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                email: ext.new_email || '',
+                contact_first: firstName,
+                contact_last: lastName,
+                company_name: ext.new_company || intel.source_company || '',
+                title: ext.new_title || '',
+                stage: 'new',
+                source: 'reply-intel',
+                source_intel_id: intelId,
+                notes: `Discovered via reply from ${intel.source_email}: ${ext.context}`,
+                created_at: new Date().toISOString()
+            };
+
+            leads.push(newLead);
+            intel.status = 'approved';
+            intel.actioned_at = new Date().toISOString();
+
+            // Mark the original lead
+            const origLead = leads.find(l => l.email === intel.source_email);
+            if (origLead) {
+                origLead.reply_intel_replacement = newLead.id;
+            }
+
+            saveLeads();
+            saveReplyIntel();
+            cloudPushReplyIntel();
+            logActivity('reply_intel', `Approved intel: ${intel.source_email} → ${ext.new_email || ext.new_name}`);
+            renderReporting();
+        }
+
+        function dismissReplyIntel(intelId) {
+            const intel = replyIntel.find(r => r.id === intelId);
+            if (!intel) return;
+            intel.status = 'dismissed';
+            intel.actioned_at = new Date().toISOString();
+            saveReplyIntel();
+            cloudPushReplyIntel();
+            renderReporting();
+        }
+
+        function renderReplyIntel(area) {
+            loadReplyIntel();
+
+            const total = replyIntel.length;
+            const pending = replyIntel.filter(r => r.status === 'pending').length;
+            const approved = replyIntel.filter(r => r.status === 'approved').length;
+            const dismissed = replyIntel.filter(r => r.status === 'dismissed').length;
+            const newLeadsCreated = leads.filter(l => l.source === 'reply-intel').length;
+
+            // Filter
+            let filtered = replyIntel;
+            if (replyIntelFilter === 'pending') filtered = replyIntel.filter(r => r.status === 'pending');
+            else if (replyIntelFilter === 'approved') filtered = replyIntel.filter(r => r.status === 'approved');
+            else if (replyIntelFilter === 'dismissed') filtered = replyIntel.filter(r => r.status === 'dismissed');
+
+            // Sort by most recent first
+            filtered = [...filtered].sort((a, b) => (b.scanned_at || '').localeCompare(a.scanned_at || ''));
+
+            const typeLabels = { ooo: 'Out of Office', left_company: 'Left Company', referral: 'Referral', rebrand: 'Rebrand', redirect: 'Redirect', other: 'Other' };
+            const typeColors = { ooo: 'var(--accent)', left_company: 'var(--coral)', referral: 'var(--green)', rebrand: '#ffd700', redirect: 'var(--cyan)', other: 'var(--text-muted)' };
+
+            area.innerHTML = `
+                <h2 style="margin-bottom: 16px;">Reply Intelligence</h2>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Scan SmartLead replies to extract new contacts from out-of-office, referrals, and redirects.</p>
+
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-label">Total Scanned</div><div class="stat-value">${total}</div></div>
+                    <div class="stat-card"><div class="stat-label">Pending Review</div><div class="stat-value" style="color:var(--accent);">${pending}</div></div>
+                    <div class="stat-card"><div class="stat-label">Approved</div><div class="stat-value" style="color:var(--green);">${approved}</div></div>
+                    <div class="stat-card"><div class="stat-label">New Leads Created</div><div class="stat-value" style="color:var(--cyan);">${newLeadsCreated}</div></div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin: 16px 0; align-items: center; flex-wrap: wrap;">
+                    <button class="btn-p" onclick="scanRepliesForIntel()" style="font-size: 13px;">Scan Replies</button>
+                    <div style="display: flex; gap: 4px; margin-left: auto;">
+                        <button class="${replyIntelFilter === 'all' ? 'btn-p' : 'btn-s'}" onclick="replyIntelFilter='all'; renderReporting();" style="font-size: 12px; padding: 4px 10px;">All (${total})</button>
+                        <button class="${replyIntelFilter === 'pending' ? 'btn-p' : 'btn-s'}" onclick="replyIntelFilter='pending'; renderReporting();" style="font-size: 12px; padding: 4px 10px;">Pending (${pending})</button>
+                        <button class="${replyIntelFilter === 'approved' ? 'btn-p' : 'btn-s'}" onclick="replyIntelFilter='approved'; renderReporting();" style="font-size: 12px; padding: 4px 10px;">Approved (${approved})</button>
+                        <button class="${replyIntelFilter === 'dismissed' ? 'btn-p' : 'btn-s'}" onclick="replyIntelFilter='dismissed'; renderReporting();" style="font-size: 12px; padding: 4px 10px;">Dismissed (${dismissed})</button>
+                    </div>
+                </div>
+
+                ${filtered.length === 0 ? `
+                    <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        ${total === 0 ? 'No reply intel yet. Click "Scan Replies" to analyze SmartLead responses.' : 'No items match this filter.'}
+                    </div>
+                ` : `
+                    <table class="lead-table"><thead><tr>
+                        <th>Original Contact</th>
+                        <th>Company</th>
+                        <th>Reply Type</th>
+                        <th>New Contact Found</th>
+                        <th>Context</th>
+                        <th>Actions</th>
+                    </tr></thead><tbody>
+                    ${filtered.map(r => {
+                        const ext = r.extracted;
+                        const newContact = ext.new_email || ext.new_name || '—';
+                        const newDetails = [ext.new_name, ext.new_title, ext.new_company].filter(Boolean).join(', ');
+                        return `<tr>
+                            <td style="font-size: 12px;">
+                                <div style="font-weight: 600;">${r.source_name || '—'}</div>
+                                <div style="color: var(--text-muted);">${r.source_email}</div>
+                            </td>
+                            <td>${r.source_company || '—'}</td>
+                            <td><span style="color: ${typeColors[r.reply_type] || 'var(--text-muted)'}; font-weight: 600; font-size: 12px;">${typeLabels[r.reply_type] || r.reply_type}</span></td>
+                            <td style="font-size: 12px;">
+                                ${ext.new_email ? `<div style="font-weight: 600; color: var(--green);">${ext.new_email}</div>` : ''}
+                                ${newDetails ? `<div style="color: var(--text-muted);">${newDetails}</div>` : ''}
+                                ${!ext.new_email && !newDetails ? '—' : ''}
+                            </td>
+                            <td style="font-size: 12px; color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ext.context || '—'}</td>
+                            <td style="white-space: nowrap;">
+                                ${r.status === 'pending' ? `
+                                    <button class="btn-p" onclick="approveReplyIntel('${r.id}')" style="font-size: 11px; padding: 3px 8px; margin-right: 4px;">Approve</button>
+                                    <button class="btn-s" onclick="dismissReplyIntel('${r.id}')" style="font-size: 11px; padding: 3px 8px; margin-right: 4px;">Dismiss</button>
+                                ` : `
+                                    <span style="font-size: 11px; color: ${r.status === 'approved' ? 'var(--green)' : 'var(--text-muted)'}; text-transform: uppercase;">${r.status}</span>
+                                `}
+                                <button class="btn-s" onclick="viewReplyIntel('${r.id}')" style="font-size: 11px; padding: 3px 8px;">View</button>
+                            </td>
+                        </tr>`;
+                    }).join('')}
+                    </tbody></table>
+                `}
+            `;
+        }
+
+        function viewReplyIntel(intelId) {
+            const r = replyIntel.find(ri => ri.id === intelId);
+            if (!r) return;
+            const ext = r.extracted;
+            const typeLabels = { ooo: 'Out of Office', left_company: 'Left Company', referral: 'Referral', rebrand: 'Rebrand', redirect: 'Redirect', other: 'Other' };
+
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+            modal.innerHTML = `
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                        <h3 style="margin:0;">Reply Intel Detail</h3>
+                        <button class="btn-s" onclick="this.closest('div[style*=fixed]').remove()" style="font-size:18px;padding:2px 8px;">×</button>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                        <div>
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Original Contact</div>
+                            <div style="font-weight:600;">${r.source_name || '—'}</div>
+                            <div style="font-size:12px;color:var(--text-muted);">${r.source_email}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Company</div>
+                            <div style="font-weight:600;">${r.source_company || '—'}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Reply Type</div>
+                            <div style="font-weight:600;">${typeLabels[r.reply_type] || r.reply_type}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Status</div>
+                            <div style="font-weight:600;text-transform:uppercase;color:${r.status === 'approved' ? 'var(--green)' : r.status === 'pending' ? 'var(--accent)' : 'var(--text-muted)'};">${r.status}</div>
+                        </div>
+                    </div>
+
+                    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:600;">EXTRACTED INTEL</div>
+                        ${ext.new_email ? `<div style="margin-bottom:4px;"><span style="color:var(--text-muted);font-size:12px;">Email:</span> <span style="color:var(--green);font-weight:600;">${ext.new_email}</span></div>` : ''}
+                        ${ext.new_name ? `<div style="margin-bottom:4px;"><span style="color:var(--text-muted);font-size:12px;">Name:</span> <span style="font-weight:600;">${ext.new_name}</span></div>` : ''}
+                        ${ext.new_title ? `<div style="margin-bottom:4px;"><span style="color:var(--text-muted);font-size:12px;">Title:</span> ${ext.new_title}</div>` : ''}
+                        ${ext.new_company ? `<div style="margin-bottom:4px;"><span style="color:var(--text-muted);font-size:12px;">Company:</span> ${ext.new_company}</div>` : ''}
+                        ${ext.context ? `<div style="margin-top:8px;font-size:12px;color:var(--text-muted);font-style:italic;">${ext.context}</div>` : ''}
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:600;">ORIGINAL REPLY</div>
+                        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto;color:var(--text-muted);">${(r.reply_text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                    </div>
+
+                    ${r.status === 'pending' ? `
+                        <div style="display:flex;gap:8px;justify-content:flex-end;">
+                            <button class="btn-s" onclick="dismissReplyIntel('${r.id}'); this.closest('div[style*=fixed]').remove();">Dismiss</button>
+                            <button class="btn-p" onclick="approveReplyIntel('${r.id}'); this.closest('div[style*=fixed]').remove();">Approve & Create Lead</button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            document.body.appendChild(modal);
         }
 
         // ========== AI BRAND DISCOVERY ENGINE ==========
@@ -11896,6 +12306,7 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
         loadLeads();
         loadBrands();
         loadDiscovery();
+        loadReplyIntel();
         checkUrlImport();
 
         // Phase 2: Defer rendering and network to next frame so the browser

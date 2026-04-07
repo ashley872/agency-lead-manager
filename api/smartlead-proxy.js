@@ -71,6 +71,15 @@ module.exports = async function handler(req, res) {
         return res.status(r.status).json(await r.json());
       }
 
+      case "get_lead_messages": {
+        if (!campaign_id || !body.body?.lead_id)
+          return res.status(400).json({ error: "campaign_id and lead_id required" });
+        const r = await fetch(
+          `${SL_BASE}/campaigns/${campaign_id}/leads/${body.body.lead_id}/message-history?api_key=${api_key}`
+        );
+        return res.status(r.status).json(await r.json());
+      }
+
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
