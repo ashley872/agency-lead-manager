@@ -1538,6 +1538,11 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                 <!-- Pending clean banner -->
                 <div id="nlPendingClean" style="display: none;"></div>
 
+                <!-- Autopilot banner -->
+                <div id="nlAutopilotBanner" style="display: none; margin-bottom: 8px; padding: 8px 14px; border-radius: 6px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); font-size: 12px; color: var(--green); display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 14px;">&#9889;</span> <strong>Autopilot ON</strong> — leads are auto-pulled and drip feed runs daily. <a href="#" onclick="event.preventDefault(); switchNlSub('settings')" style="color: var(--cyan); text-decoration: underline;">Settings</a>
+                </div>
+
                 <!-- Drip progress bar -->
                 <div id="nlDripProgress" style="display: none; margin-bottom: 16px; padding: 12px 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -1667,6 +1672,15 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                             </label>
                             <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
                                 If enabled, subscribers must confirm via email. Recommended off for imported leads.
+                            </p>
+                        </div>
+                        <div style="border-top: 1px solid var(--border); margin-top: 16px; padding-top: 16px;">
+                            <label class="form-label" style="color: var(--green); display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="beehiivAutopilot" />
+                                Autopilot Mode
+                            </label>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+                                When enabled: eligible leads are auto-pulled into the newsletter queue on load, and the drip feed runs automatically every day. No manual steps needed.
                             </p>
                         </div>
                         <div style="margin-top: 20px;">
@@ -2623,6 +2637,8 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                             console.warn('Auto-sync lead check failed:', e);
                         } finally {
                             _initialSyncDone = true;
+                            // Run autopilot if cloud pull didn't happen (local data was newer)
+                            if (leads.length > 0) setTimeout(() => runAutopilot(), 3000);
                         }
                     })();
                 });
@@ -2756,6 +2772,10 @@ e.g. Independent craft breweries and distilleries selling branded merchandise, g
                 syncStatus = 'connected';
                 updateSyncIndicator();
                 showToast(`Pulled ${leads.length.toLocaleString()} leads from cloud.`);
+
+                // Run autopilot after cloud pull (auto-pull clean leads + auto-drip)
+                setTimeout(() => runAutopilot(), 3000);
+
                 return true;
             } catch (e) {
                 console.error('Cloud pull failed:', e);
@@ -10955,6 +10975,7 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
                 aut_enterprise: document.getElementById('beehiivAutEnterprise').value.trim(),
                 daily_limit: parseInt(document.getElementById('beehiivDailyLimit').value) || 300,
                 double_opt_in: document.getElementById('beehiivDoubleOptIn').checked,
+                autopilot: document.getElementById('beehiivAutopilot').checked,
                 tag_country: document.getElementById('beehiivTagCountry').value.trim() || 'country-',
                 tag_segment: document.getElementById('beehiivTagSegment').value.trim() || 'nl-',
                 tag_tier: document.getElementById('beehiivTagTier').value.trim() || 'tier-',
@@ -10976,6 +10997,7 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
             document.getElementById('beehiivDailyLimit').value = s.daily_limit || 300;
             document.getElementById('beehiivLimitVal').textContent = s.daily_limit || 300;
             document.getElementById('beehiivDoubleOptIn').checked = !!s.double_opt_in;
+            document.getElementById('beehiivAutopilot').checked = !!s.autopilot;
             document.getElementById('beehiivTagCountry').value = s.tag_country || 'country-';
             document.getElementById('beehiivTagSegment').value = s.tag_segment || 'nl-';
             document.getElementById('beehiivTagTier').value = s.tag_tier || 'tier-';
@@ -11599,6 +11621,61 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
             switchNlSub('pending');
         }
 
+        // Auto-pull: moves eligible clean leads into newsletter queue silently
+        function autoPullToNewsletter() {
+            const eligible = leads.filter(l => {
+                if (!l.email || !l.email.includes('@')) return false;
+                if (l.stage !== 'new' && l.stage !== 'enrich') return false;
+                if (l.email_type === 'generic') return false;
+                // Only pull verified leads so they go straight to queue
+                if (l.email_verified !== 'valid') return false;
+                // Exclude restricted categories
+                const industry = (l.industry || '').toLowerCase();
+                const company = (l.company_name || '').toLowerCase();
+                for (const r of TTS_RESTRICTED_INDUSTRIES) {
+                    if (industry.includes(r) || company.includes(r)) return false;
+                }
+                return true;
+            });
+            if (eligible.length === 0) return 0;
+            eligible.forEach(l => { l.stage = 'newsletter'; });
+            invalidateFilterCache();
+            saveLeads();
+            return eligible.length;
+        }
+
+        // Autopilot: auto-pull + auto-drip on page load
+        async function runAutopilot() {
+            const s = getBeehiivSettings();
+            if (!s.autopilot || !s.api_key || !s.publication_id) return;
+
+            // Auto-pull clean leads
+            const pulled = autoPullToNewsletter();
+            if (pulled > 0) {
+                console.log(`Autopilot: pulled ${pulled} leads into newsletter queue.`);
+            }
+
+            // Check if we already dripped today
+            const todayCount = getDripCountToday();
+            const dailyLimit = s.daily_limit || 300;
+            if (todayCount >= dailyLimit) {
+                console.log(`Autopilot: daily limit reached (${todayCount}/${dailyLimit}). Skipping drip.`);
+                return;
+            }
+
+            // Check there are unpushed leads
+            const unpushed = getNewsletterLeads().filter(l => l.beehiiv_status !== 'pushed' && l.beehiiv_status !== 'failed');
+            if (unpushed.length === 0) {
+                console.log('Autopilot: no unpushed leads. Skipping drip.');
+                return;
+            }
+
+            // Auto-start drip after a short delay so the UI is ready
+            console.log(`Autopilot: starting drip feed (${unpushed.length} leads, ${dailyLimit - todayCount} remaining today).`);
+            showToast(`Autopilot: starting drip feed (${unpushed.length} leads ready).`);
+            setTimeout(() => startBeehiivDrip(), 2000);
+        }
+
         function removeRestrictedFromNewsletter() {
             const pending = getPendingNewsletterLeads();
             const restricted = pending.filter(l => l.email_verified === 'valid');
@@ -11690,6 +11767,13 @@ Respond ONLY with this exact JSON format (no markdown, no code blocks):
         }
 
         function renderNewsletter() {
+            // Show/hide autopilot banner
+            const apBanner = document.getElementById('nlAutopilotBanner');
+            if (apBanner) {
+                const s = getBeehiivSettings();
+                apBanner.style.display = (s.autopilot && s.api_key && s.publication_id) ? 'flex' : 'none';
+            }
+
             const nlLeads = getNewsletterLeads();
             const filtered = filterNlLeads(nlLeads);
 
